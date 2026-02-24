@@ -1,20 +1,20 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Program {
-    functions: Vec<Function>,
-    variables: Vec<Variable>,
+    pub functions: Vec<Function>,
+    pub variables: Vec<Variable>,
 }
 
 pub type Indentifier = String;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Function {
-    return_type: Type,
-    arguments: Vec<Variable>,
-    indentifier: Indentifier,
-    body: Vec<Statement>,
+    pub return_type: Type,
+    pub arguments: Vec<Variable>,
+    pub indentifier: Indentifier,
+    pub body: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Declaration(Variable),
     Expression(Expression),
@@ -30,7 +30,7 @@ pub enum Statement {
     Return(Expression),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Operator {
     Addition,
     Subtraction,
@@ -49,13 +49,13 @@ pub enum Operator {
     Assignment,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     Bool(bool),
     Int(i32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Literal(Literal),
     Var(Indentifier),
@@ -63,13 +63,13 @@ pub enum Expression {
     FunctionCall(Indentifier, Vec<Expression>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Variable {
-    type_: Type,
-    identifier: Indentifier,
+    pub type_: Type,
+    pub identifier: Indentifier,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Bool,
     Int,
