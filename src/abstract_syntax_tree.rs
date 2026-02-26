@@ -39,7 +39,7 @@ pub enum Operator {
     Modulo,
     And,
     Or,
-    Xor,
+    // TODO: Xor,
     LessEq,
     Less,
     GreaterEquals,
@@ -59,6 +59,7 @@ pub enum Literal {
 pub enum Expression {
     Literal(Literal),
     Var(Indentifier),
+    // TODO: negation?
     Operator(Operator, Box<Expression>, Box<Expression>),
     FunctionCall(Indentifier, Vec<Expression>),
 }

@@ -2,12 +2,14 @@ mod parsing;
 mod abstract_syntax_tree;
 
 use std::{env, fs};
+use nom::error::Error;
+use nom::Err;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
     let file_contents = fs::read_to_string(file_path)
         .expect("Failed to read input code file");
-    let parsed_program = parsing::parse(&file_contents);
+    let parsed_program: Result<_, Err<Error<_>>> = parsing::parse(&file_contents);
     println!("{parsed_program:?}");
 }
