@@ -11,30 +11,28 @@ use nom::{
     sequence::tuple,
 };
 
+/// Parse a complete program
 pub fn parse<'a, E: ParseError<&'a str> + 'a>(input: &'a str) -> Result<Program, Err<E>> {
-    let (_, program) = all_consuming(program)(input)?;
-    Ok(program)
+    Ok(all_consuming(program)(input)?.1)
 }
 
 /// Parses 1 or more whitespace characters
 fn whitespace<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     let chars = " \t\r\n";
-
     take_while1(move |c| chars.contains(c))(i)
 }
 
 /// Optionally parses whitespace
 fn optional_ws<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     let chars = " \t\r\n";
-
     take_while(move |c| chars.contains(c))(i)
 }
 
 /// Parses a variable or function indentifier
 /// Can't start with upper case because that is reserved for types
 fn identifier<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &'a str, E> {
-    // First letter should be lowercase
-    let (i, _) = peek(satisfy(|c| c.is_lowercase())).parse(i)?;
+    // First letter should be lowercase, exit with error if not
+    peek(satisfy(|c| c.is_lowercase())).parse(i)?;
     // Parse alphanumeric or underscore
     take_while1(move |c: char| (c == '_' || c.is_alphanumeric()))(i)
 }
@@ -49,7 +47,7 @@ fn type_<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Type, 
 }
 
 /// Parses a type and an indentifier, separated by whitespace, and optional whitespace in front
-fn declaration<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Variable, E> {
+fn variable<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Variable, E> {
     let (i, _) = optional_ws(i)?;
     let (i, type_signature) = type_(i)?;
     let (i, _) = whitespace(i)?;
@@ -64,22 +62,23 @@ fn declaration<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 }
 
 /// Parses a variable declaration followed by semicolon
-fn variable<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Variable, E> {
-    let (i, var) = declaration(i)?;
+fn declaration<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Variable, E> {
+    let (i, var) = variable(i)?;
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag(";")(i)?;
     Ok((i, var))
 }
 
+/// Type temporarily used because functions and variables declaration can be mixed
 enum ProgramContent {
     Func(Function),
     Var(Variable),
 }
 
-// Parse the complete program file
+/// Parse the complete program file
 fn program<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Program, E> {
     let (i, contents) = many0(alt((
-        map(variable, |var| ProgramContent::Var(var)),
+        map(declaration, |var| ProgramContent::Var(var)),
         map(function, |func| ProgramContent::Func(func)),
     )))(i)?;
 
@@ -111,9 +110,8 @@ fn function<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Fun
     let (i, _) = whitespace(i)?;
     let (i, ident) = identifier(i)?;
     let (i, _) = optional_ws(i)?;
-    let (i, _) = tag("(")(i)?;
-    let (i, arguments) = separated_list0(tuple((optional_ws, tag(","))), declaration)(i)?;
-    let (i, _) = tag(")")(i)?;
+    let (i, arguments) =
+        parenthesised(separated_list0(tuple((optional_ws, tag(","))), variable))(i)?;
     let (i, body) = block(i)?;
     Ok((
         i,
@@ -139,7 +137,7 @@ fn block<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Vec<St
 /// Parses a statement
 fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Statement, E> {
     alt((
-        map(variable, |var| Statement::Declaration(var)),
+        map(declaration, |var| Statement::Declaration(var)),
         map(expression_stmt, |expr| Statement::Expression(expr)),
         if_stmt,
         while_stmt,
@@ -148,20 +146,15 @@ fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, St
 }
 
 /// Parses an if statement
+/// TODO: make else branch optional
 fn if_stmt<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Statement, E> {
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("if")(i)?;
     let (i, _) = optional_ws(i)?;
-    let (i, _) = tag("(")(i)?;
-    let (i, _) = optional_ws(i)?;
-    let (i, condition) = expression(i)?;
-    let (i, _) = optional_ws(i)?;
-    let (i, _) = tag(")")(i)?;
-    let (i, _) = optional_ws(i)?;
+    let (i, condition) = parenthesised(expression)(i)?;
     let (i, then) = block(i)?;
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("else")(i)?;
-    let (i, _) = optional_ws(i)?;
     let (i, else_) = block(i)?;
     Ok((
         i,
@@ -178,11 +171,7 @@ fn while_stmt<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, S
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("while")(i)?;
     let (i, _) = optional_ws(i)?;
-    let (i, _) = tag("(")(i)?;
-    let (i, _) = optional_ws(i)?;
-    let (i, condition) = expression(i)?;
-    let (i, _) = optional_ws(i)?;
-    let (i, _) = tag(")")(i)?;
+    let (i, condition) = parenthesised(expression)(i)?;
     let (i, body) = block(i)?;
     Ok((
         i,
@@ -215,6 +204,7 @@ fn expression_stmt<'a, E: ParseError<&'a str> + 'a + 'a>(
     Ok((i, expr))
 }
 
+/// Parses simple expression, containing single value, or in parenthesis
 fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Expression, E> {
@@ -226,9 +216,11 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
         }),
         function_call,
         map(identifier, |ident| Expression::Var(ident.to_string())),
+        parenthesised(expression),
     ))(i)
 }
 
+/// Parses function call expression
 fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     let (i, _) = optional_ws(i)?;
     let (i, ident) = identifier(i)?;
@@ -240,7 +232,6 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     Ok((i, Expression::FunctionCall(ident.to_string(), arguments)))
 }
 
-// TODO: replace other occurences with this
 /// Parser with parenthesis around it, with optional whitespace
 fn parenthesised<'a, E: ParseError<&'a str> + 'a, F, R>(
     mut p: F,
@@ -258,9 +249,10 @@ where
     }
 }
 
+/// Parse left associatively, based on a given operator and expression parser
 fn left_associative<'a, E: ParseError<&'a str> + 'a, Fe, Fo>(
-    mut operator: Fo,
-    mut expression: Fe,
+    operator: Fo,
+    expression: Fe,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, Expression, E>
 where
     Fo: FnMut(&'a str) -> IResult<&'a str, Operator, E> + 'a + Copy,
@@ -268,19 +260,16 @@ where
 {
     move |i| {
         let (i, (ops, exprs)) = accumulate_ops_exprs(i, operator, expression)?;
-        let mut ops = ops.into_iter();
-        let mut exprs = exprs.into_iter();
-        let expr1 = exprs.next().expect("should be at least one expression");
-        let res = std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| {
-            Expression::Operator(op, Box::new(expr1), Box::new(expr2))
-        });
-        Ok((i, res))
+        let ops = ops.into_iter();
+        let exprs = exprs.into_iter();
+        Ok((i, fold_ops_exprs(ops, exprs)))
     }
 }
 
+/// Parse right associatively, based on a given operator and expression parser
 fn right_associative<'a, E: ParseError<&'a str> + 'a, Fe, Fo>(
-    mut operator: Fo,
-    mut expression: Fe,
+    operator: Fo,
+    expression: Fe,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, Expression, E>
 where
     Fo: FnMut(&'a str) -> IResult<&'a str, Operator, E> + 'a + Copy,
@@ -288,19 +277,24 @@ where
 {
     move |i| {
         let (i, (ops, exprs)) = accumulate_ops_exprs(i, operator, expression)?;
-        let mut ops = ops.into_iter().rev();
-        let mut exprs = exprs.into_iter().rev();
-        let expr1 = exprs.next().expect("should be at least one expression");
-        let res = std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| {
-            Expression::Operator(op, Box::new(expr2), Box::new(expr1))
-        });
-        Ok((i, res))
+        let ops = ops.into_iter().rev();
+        let exprs = exprs.into_iter().rev();
+        Ok((i, fold_ops_exprs(ops, exprs)))
     }
 }
 
+/// Fold the exprs into a single one using the operators
+fn fold_ops_exprs(ops: impl Iterator<Item=Operator>, mut exprs: impl Iterator<Item=Expression>) -> Expression {
+    let expr1 = exprs.next().expect("should be at least one expression");
+    std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| {
+        Expression::Operator(op, Box::new(expr1), Box::new(expr2))
+    })
+}
+
+/// Parse a list of experessions seperated by operators, accumulating them in seperate lists
 fn accumulate_ops_exprs<'a, E: ParseError<&'a str> + 'a, Fo, Fe>(
     i: &'a str,
-    mut operator: Fo,
+    operator: Fo,
     mut expression: Fe,
 ) -> IResult<&'a str, (Vec<Operator>, Vec<Expression>), E>
 where
@@ -310,7 +304,9 @@ where
     let (mut i, e1) = expression(i)?;
     let mut exprs = vec![e1];
     let mut ops = vec![];
-    while let Ok((i2, (_, op, _, expr))) = tuple((optional_ws, operator, optional_ws, expression))(i) {
+    while let Ok((i2, (_, op, _, expr))) =
+        tuple((optional_ws, operator, optional_ws, expression))(i)
+    {
         i = i2;
         exprs.push(expr);
         ops.push(op);
@@ -323,36 +319,43 @@ fn expression<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, E
     expression6(i)
 }
 
-/// Parses an expression
+/// Parse operators with highest associativity first
+/// Right associative because this level only contains assign operator
 fn expression6<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     right_associative(bin_operator6, expression5)(i)
 }
 
-/// Parses an expression
+/// Parse operators with associativity 5
+/// Left associative: && ||
 fn expression5<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     left_associative(bin_operator5, expression4)(i)
 }
 
-/// Parses an expression
+/// Parse operators with associativity 4
+/// Left associative: == !=
 fn expression4<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     left_associative(bin_operator4, expression3)(i)
 }
 
-/// Parses an expression
+/// Parse operators with associativity 3
+/// Left associative: <= < > >=
 fn expression3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     left_associative(bin_operator3, expression2)(i)
 }
 
-/// Parses an expression
+/// Parse operators with associativity 2
+/// Left associative: + -
 fn expression2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     left_associative(bin_operator2, expression1)(i)
 }
 
-/// Parses an expression
+/// Parse operators with associativity 1
+/// Left associative: / * %
 fn expression1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     left_associative(bin_operator1, expression_simple)(i)
 }
 
+// Parse operators with lowest associativity
 fn bin_operator1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::Division, tag("/")),
@@ -361,6 +364,7 @@ fn bin_operator1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
+// Parse operators with associativity 2
 fn bin_operator2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::Addition, tag("+")),
@@ -368,6 +372,7 @@ fn bin_operator2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
+// Parse operators with associativity 3
 fn bin_operator3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::LessEq, tag("<=")),
@@ -377,6 +382,7 @@ fn bin_operator3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
+// Parse operators with associativity 4
 fn bin_operator4<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::Equals, tag("==")),
@@ -384,6 +390,7 @@ fn bin_operator4<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
+// Parse operators with associativity 5
 fn bin_operator5<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::And, tag("&&")),
@@ -391,6 +398,7 @@ fn bin_operator5<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
+// Parse operators with associativity 6
 fn bin_operator6<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     value(Operator::Assignment, tag("="))(i)
 }
@@ -402,7 +410,7 @@ mod tests {
     #[test]
     fn test_variable() {
         let test_string = " Bool yes ; ";
-        let res: IResult<_, _, Error<_>> = variable(&test_string);
+        let res: IResult<_, _, Error<_>> = declaration(&test_string);
         assert_eq!(
             res,
             Ok((
@@ -755,6 +763,31 @@ mod tests {
                     Box::new(Expression::Var("var2".to_string())),
                     Box::new(Expression::Literal(Literal::Int(2))),
                 ))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parenthesised_test() {
+        let test_string = "(a + b) * (c + d)";
+        let res: Result<_, Err<Error<_>>> = expression(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                Expression::Operator(
+                    Operator::Multiplication,
+                    Box::new(Expression::Operator(
+                        Operator::Addition,
+                        Box::new(Expression::Var("a".to_string())),
+                        Box::new(Expression::Var("b".to_string())),
+                    )),
+                    Box::new(Expression::Operator(
+                        Operator::Addition,
+                        Box::new(Expression::Var("c".to_string())),
+                        Box::new(Expression::Var("d".to_string())),
+                    )),
+                )
             ))
         );
     }
