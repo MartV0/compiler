@@ -6,7 +6,7 @@ use nom::{
     bytes::complete::{tag, take_while, take_while1},
     character::complete::{digit1, satisfy},
     combinator::{all_consuming, map, peek, value},
-    error::ParseError,
+    error::{Error, ParseError},
     multi::{many0, separated_list0},
     sequence::tuple,
 };
@@ -199,6 +199,8 @@ fn return_stmt<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
     let (i, _) = tag("return")(i)?;
     let (i, _) = whitespace(i)?;
     let (i, expr) = expression(i)?;
+    let (i, _) = optional_ws(i)?;
+    let (i, _) = tag(";")(i)?;
     Ok((i, Statement::Return(expr)))
 }
 
@@ -206,6 +208,7 @@ fn return_stmt<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 fn expression_stmt<'a, E: ParseError<&'a str> + 'a + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Expression, E> {
+    let (i, _) = optional_ws(i)?;
     let (i, expr) = expression(i)?;
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag(";")(i)?;
@@ -235,16 +238,6 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
         expression,
     ))(i)?;
     Ok((i, Expression::FunctionCall(ident.to_string(), arguments)))
-}
-
-fn value2<I, O1: Clone, O2, E: ParseError<I>, F>(
-    val: O1,
-    mut parser: F,
-) -> impl FnMut(I) -> IResult<I, O1, E>
-where
-    F: Parser<I, O2, E>,
-{
-    move |input: I| parser.parse(input).map(|(i, _)| (i, val.clone()))
 }
 
 // TODO: replace other occurences with this
@@ -317,7 +310,7 @@ where
     let (mut i, e1) = expression(i)?;
     let mut exprs = vec![e1];
     let mut ops = vec![];
-    while let Ok((i2, (op, expr))) = tuple((operator, expression))(i) {
+    while let Ok((i2, (_, op, _, expr))) = tuple((optional_ws, operator, optional_ws, expression))(i) {
         i = i2;
         exprs.push(expr);
         ops.push(op);
@@ -649,8 +642,7 @@ mod tests {
                     arg2 = False;
                 }
                 return 4;
-            }
-        ";
+            }";
         let res: Result<_, Err<Error<_>>> = function(&test_string);
         assert_eq!(
             res,
@@ -729,6 +721,40 @@ mod tests {
                         Box::new(Expression::Literal(Literal::Int(3))),
                     ))]
                 }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_block() {
+        let test_string = "{ var2 = 2; }";
+        let res: Result<_, Err<Error<_>>> = block(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                vec![Statement::Expression(Expression::Operator(
+                    Operator::Assignment,
+                    Box::new(Expression::Var("var2".to_string())),
+                    Box::new(Expression::Literal(Literal::Int(2))),
+                ))]
+            ))
+        );
+    }
+
+    #[test]
+    fn test_statement_expr() {
+        let test_string = "var2 = 2; ";
+        let res: Result<_, Err<Error<_>>> = statement(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                " ",
+                Statement::Expression(Expression::Operator(
+                    Operator::Assignment,
+                    Box::new(Expression::Var("var2".to_string())),
+                    Box::new(Expression::Literal(Literal::Int(2))),
+                ))
             ))
         );
     }
