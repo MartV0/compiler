@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_field_names)]
+
 use nom::{
     IResult,
     branch::alt,
@@ -15,8 +17,8 @@ use super::parse_expression::expression;
 /// Main entry point for the parsing
 pub fn program<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Program, E> {
     let (i, contents) = many0(alt((
-        map(declaration, |var| ProgramContent::Var(var)),
-        map(function, |func| ProgramContent::Func(func)),
+        map(declaration, ProgramContent::Var),
+        map(function, ProgramContent::Func),
     )))(i)?;
 
     let mut functions = vec![];
@@ -88,8 +90,8 @@ fn block<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Vec<St
 /// Parses a statement
 fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Statement, E> {
     alt((
-        map(declaration, |var| Statement::Declaration(var)),
-        map(expression_stmt, |expr| Statement::Expression(expr)),
+        map(declaration, Statement::Declaration),
+        map(expression_stmt, Statement::Expression),
         if_stmt,
         while_stmt,
         return_stmt,
