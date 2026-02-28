@@ -58,7 +58,7 @@ where
         let (i, (ops, exprs)) = accumulate_ops_exprs(i, operator, expression)?;
         let ops = ops.into_iter();
         let exprs = exprs.into_iter();
-        Ok((i, fold_ops_exprs(ops, exprs)))
+        Ok((i, fold_ops_exprs(ops, exprs, Associativity::Left)))
     }
 }
 
@@ -75,15 +75,23 @@ where
         let (i, (ops, exprs)) = accumulate_ops_exprs(i, operator, expression)?;
         let ops = ops.into_iter().rev();
         let exprs = exprs.into_iter().rev();
-        Ok((i, fold_ops_exprs(ops, exprs)))
+        Ok((i, fold_ops_exprs(ops, exprs, Associativity::Right)))
     }
 }
 
+enum Associativity {
+    Left,
+    Right
+}
+
 /// Fold the exprs into a single one using the operators
-fn fold_ops_exprs(ops: impl Iterator<Item=Operator>, mut exprs: impl Iterator<Item=Expression>) -> Expression {
+fn fold_ops_exprs(ops: impl Iterator<Item=Operator>, mut exprs: impl Iterator<Item=Expression>, associativity: Associativity) -> Expression {
     let expr1 = exprs.next().expect("should be at least one expression");
     std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| {
-        Expression::Operator(op, Box::new(expr1), Box::new(expr2))
+        match associativity {
+            Associativity::Left => Expression::Operator(op, Box::new(expr1), Box::new(expr2)),
+            Associativity::Right => Expression::Operator(op, Box::new(expr2), Box::new(expr1))
+        }
     })
 }
 
@@ -146,7 +154,7 @@ fn expression1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
     left_associative(bin_operator1, expression_simple)(i)
 }
 
-// Parse operators with lowest associativity
+/// Parse operators with lowest associativity
 fn bin_operator1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::Division, tag("/")),
@@ -155,7 +163,7 @@ fn bin_operator1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
-// Parse operators with associativity 2
+/// Parse operators with associativity 2
 fn bin_operator2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::Addition, tag("+")),
@@ -163,7 +171,7 @@ fn bin_operator2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
-// Parse operators with associativity 3
+/// Parse operators with associativity 3
 fn bin_operator3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::LessEq, tag("<=")),
@@ -173,7 +181,7 @@ fn bin_operator3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
-// Parse operators with associativity 4
+/// Parse operators with associativity 4
 fn bin_operator4<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::Equals, tag("==")),
@@ -181,7 +189,7 @@ fn bin_operator4<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
-// Parse operators with associativity 5
+/// Parse operators with associativity 5
 fn bin_operator5<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::And, tag("&&")),
@@ -189,7 +197,7 @@ fn bin_operator5<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
     ))(i)
 }
 
-// Parse operators with associativity 6
+/// Parse operators with associativity 6
 fn bin_operator6<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     value(Operator::Assignment, tag("="))(i)
 }
