@@ -59,54 +59,57 @@ struct Elf64_Shdr {
 }
 
 pub fn create_elf() -> Vec<u8> {
-    let mut data: Vec<u8> = "Hello world!".as_bytes().to_vec();
-    let data_len: u64 = data.len().try_into().expect("Failed to converst usize to u64");
-    let data_len_bytes = data_len.to_le_bytes();
+    // let mut data: Vec<u8> = "Hello world!".as_bytes().to_vec();
+    // let data_len: u64 = data.len().try_into().expect("Failed to converst usize to u64");
+    // let data_len_bytes = data_len.to_le_bytes();
+    // let mut code: Vec<u8> = vec![
+    //     //	mov    eax,0x1
+    //     0xb8, 0x01, 0x00, 0x00, 0x00,       
+    //     //	mov    edi,0x1
+    //     0xbf, 0x01, 0x00, 0x00, 0x00,       
+    //     //	movabs rsi, pointer to string, placeholder
+    //     0x48, 0xbe, 0xAA, 0xAA, 0xAA, 0xAA, 0x00, 
+    //     0x00, 0x00, 0x00,
+    //     //	mov    edx, length of string
+    //     0xba, data_len_bytes[0], data_len_bytes[1], data_len_bytes[2], data_len_bytes[3], 
+    //     //	syscall
+    //     0x0f, 0x05,                
+    //     //	mov    eax,0x3c
+    //     0xb8, 0x3c, 0x00, 0x00, 0x00,       
+    //     //	mov    edi, exit code: 0x0
+    //     0xbf, 0x00, 0x00, 0x00, 0x00,       
+    //     //	syscall
+    //     0x0f, 0x05                
+    // ];
     let mut code: Vec<u8> = vec![
-        //	mov    eax,0x1
-        0xb8, 0x01, 0x00, 0x00, 0x00,       
-        //	mov    edi,0x1
-        0xbf, 0x01, 0x00, 0x00, 0x00,       
-        //	movabs rsi, pointer to string, placeholder
-        0x48, 0xbe, 0xAA, 0xAA, 0xAA, 0xAA, 0x00, 
-        0x00, 0x00, 0x00,
-        //	mov    edx, length of string
-        0xba, data_len_bytes[0], data_len_bytes[1], data_len_bytes[2], data_len_bytes[3], 
-        //	syscall
-        0x0f, 0x05,                
-        //	mov    eax,0x3c
-        0xb8, 0x3c, 0x00, 0x00, 0x00,       
-        //	mov    edi, exit code: 0x0
-        0xbf, 0x00, 0x00, 0x00, 0x00,       
-        //	syscall
-        0x0f, 0x05                
+        0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, // mov rax, 60
+        0x48, 0xC7, 0xC7, 0x2A, 0x00, 0x00, 0x00, // mov rdi, 42
+        0x0F, 0x05, // syscall (the newer syscall instruction for x86-64 int 0x80 on x86)
     ];
-    let text_header_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE * 2 + 1).into();
-    // let text_header_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE * 2 + 1).into();
-    let code_virtual_address = 8;
+    let text_header_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE).into();
+    let code_virtual_address = text_header_offset + 0x400000;
     let code_len: u64 = code.len().try_into().expect("Failed to converst usize to u64");
     let text_program_header = create_program_header(
         ProgramHeaderType::Text, 
         text_header_offset,
-        // Not sure why, but when searching linux memory layout text always seems to start at 8
         code_virtual_address,
         code_len
     );
-    let data_virtual_address: u64 = code_virtual_address + code_len;
-    let data_program_header = create_program_header(
-        ProgramHeaderType::Rodata, 
-        text_header_offset + code_len,
-        data_virtual_address, 
-        data_len
-    );
-    let str_ptr_bytes = data_virtual_address.to_le_bytes();
-    code[12..16].clone_from_slice(&str_ptr_bytes[0..4]);
-    let header = create_elf_header(2, code_virtual_address);
+    // let data_virtual_address: u64 = code_virtual_address + code_len;
+    // let data_program_header = create_program_header(
+    //     ProgramHeaderType::Rodata, 
+    //     text_header_offset + code_len,
+    //     data_virtual_address, 
+    //     data_len
+    // );
+    // let str_ptr_bytes = data_virtual_address.to_le_bytes();
+    // code[12..16].clone_from_slice(&str_ptr_bytes[0..4]);
+    let header = create_elf_header(1, code_virtual_address);
     let mut res = elf_header_to_bytes(header).to_vec();
     res.append(&mut program_header_to_bytes(text_program_header).to_vec());
-    res.append(&mut program_header_to_bytes(data_program_header).to_vec());
+    // res.append(&mut program_header_to_bytes(data_program_header).to_vec());
     res.append(&mut code);
-    res.append(&mut data);
+    // res.append(&mut data);
     res
 }
 
@@ -142,7 +145,7 @@ fn create_program_header(ph_type: ProgramHeaderType, offset: Elf64_Off, virtual_
         // equal for both the bytecode and the text, but might be different for other types
         p_memsz: size,
         // TODO: 4096?
-        p_align: 8
+        p_align: 0x1000
     }
 }
 
