@@ -1,12 +1,18 @@
-#![allow(non_camel_case_types)]
+#![allow(non_camel_case_types, non_snake_case)]
+/// In this module the creation of the ELF binary is done, from the already assembled byte code.
+/// Created this file by following these resources:
+/// - Amazing introduction, but stil pretty detailed: https://www.youtube.com/watch?v=nC1U1LJQL8o
+/// - Creating a elf binary by hand (first comment contains x86_64): https://www.youtube.com/watch?v=XH6jDiKxod8
+/// - Linux elf man page: https://www.man7.org/linux/man-pages/man5/elf.5.html
+
 
 const EI_NIDENT: usize = 16;
 
-type Elf64_Half = u16; // TODO: alignment 2
-type Elf64_Word = u32; // TODO: alignment 4
-type Elf64_Xword = u64; // TODO: alignment 4
-type Elf64_Addr = u64; // TODO: alignment 8
-type Elf64_Off = u64; // TODO: alignment 8 
+type Elf64_Half = u16;
+type Elf64_Word = u32;
+type Elf64_Xword = u64;
+type Elf64_Addr = u64;
+type Elf64_Off = u64;
 
 const ELF_HEADER_SIZE: Elf64_Half = 64;
 const ELF_HEADER_SIZE_U: usize = 64;
@@ -44,6 +50,7 @@ struct Elf64_Phdr {
     p_align: Elf64_Xword,
 }
 
+#[allow(dead_code)]
 /// Section header
 struct Elf64_Shdr {
     sh_name: Elf64_Word,
@@ -59,77 +66,89 @@ struct Elf64_Shdr {
 }
 
 pub fn create_elf() -> Vec<u8> {
-    // let mut data: Vec<u8> = "Hello world!".as_bytes().to_vec();
-    // let data_len: u64 = data.len().try_into().expect("Failed to converst usize to u64");
-    // let data_len_bytes = data_len.to_le_bytes();
-    // let mut code: Vec<u8> = vec![
-    //     //	mov    eax,0x1
-    //     0xb8, 0x01, 0x00, 0x00, 0x00,       
-    //     //	mov    edi,0x1
-    //     0xbf, 0x01, 0x00, 0x00, 0x00,       
-    //     //	movabs rsi, pointer to string, placeholder
-    //     0x48, 0xbe, 0xAA, 0xAA, 0xAA, 0xAA, 0x00, 
-    //     0x00, 0x00, 0x00,
-    //     //	mov    edx, length of string
-    //     0xba, data_len_bytes[0], data_len_bytes[1], data_len_bytes[2], data_len_bytes[3], 
-    //     //	syscall
-    //     0x0f, 0x05,                
-    //     //	mov    eax,0x3c
-    //     0xb8, 0x3c, 0x00, 0x00, 0x00,       
-    //     //	mov    edi, exit code: 0x0
-    //     0xbf, 0x00, 0x00, 0x00, 0x00,       
-    //     //	syscall
-    //     0x0f, 0x05                
-    // ];
+    let mut data: Vec<u8> = "Hello world\n".as_bytes().to_vec();
+    let data_len: u64 = data.len().try_into().expect("Failed to convert usize to u64");
+    let data_len_bytes = data_len.to_le_bytes();
+    let header_count = 2;
     let mut code: Vec<u8> = vec![
-        0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00, // mov rax, 60
-        0x48, 0xC7, 0xC7, 0x2A, 0x00, 0x00, 0x00, // mov rdi, 42
-        0x0F, 0x05, // syscall (the newer syscall instruction for x86-64 int 0x80 on x86)
+        //	mov    eax,0x1
+        0xb8, 0x01, 0x00, 0x00, 0x00,       
+        //	mov    edi,0x1
+        0xbf, 0x01, 0x00, 0x00, 0x00,       
+        //	movabs rsi, pointer to string, placeholder
+        0x48, 0xbe, 0xAA, 0xAA, 0xAA, 0xAA, 0x00, 
+        0x00, 0x00, 0x00,
+        //	mov    edx, length of string
+        0xba, data_len_bytes[0], data_len_bytes[1], data_len_bytes[2], data_len_bytes[3], 
+        //	syscall
+        0x0f, 0x05,                
+        //	mov    eax,0x3c
+        0xb8, 0x3c, 0x00, 0x00, 0x00,       
+        //	mov    edi, exit code: 0x0
+        0xbf, 0x00, 0x00, 0x00, 0x00,       
+        //	syscall
+        0x0f, 0x05                
     ];
-    let text_header_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE).into();
-    let code_virtual_address = text_header_offset + 0x400000;
-    let code_len: u64 = code.len().try_into().expect("Failed to converst usize to u64");
+
+    let text_file_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE * header_count).into();
+    // 0x400000 is default offset for text/code segment
+    let code_virtual_address = text_file_offset + 0x400000;
+    let code_len: u64 = code.len().try_into().expect("Failed to convert usize to u64");
     let text_program_header = create_program_header(
         ProgramHeaderType::Text, 
-        text_header_offset,
+        text_file_offset,
         code_virtual_address,
         code_len
     );
-    // let data_virtual_address: u64 = code_virtual_address + code_len;
-    // let data_program_header = create_program_header(
-    //     ProgramHeaderType::Rodata, 
-    //     text_header_offset + code_len,
-    //     data_virtual_address, 
-    //     data_len
-    // );
-    // let str_ptr_bytes = data_virtual_address.to_le_bytes();
-    // code[12..16].clone_from_slice(&str_ptr_bytes[0..4]);
-    let header = create_elf_header(1, code_virtual_address);
+
+    let data_offset = text_file_offset + code_len;
+    // Not sure why the + 0x1000 was necessary, but it fixed a segfault so im keeping it hehe
+    // Maybe because alignment?
+    let data_virtual_address: u64 = code_virtual_address + code_len + 0x1000;
+    let data_program_header = create_program_header(
+        ProgramHeaderType::Data, 
+        data_offset,
+        data_virtual_address, 
+        data_len
+    );
+
+    let str_ptr_bytes = data_virtual_address.to_le_bytes();
+    code[12..16].clone_from_slice(&str_ptr_bytes[0..4]);
+
+    // Add all sections of the elf file together
+    let header = create_elf_header(header_count, code_virtual_address);
     let mut res = elf_header_to_bytes(header).to_vec();
     res.append(&mut program_header_to_bytes(text_program_header).to_vec());
-    // res.append(&mut program_header_to_bytes(data_program_header).to_vec());
+    res.append(&mut program_header_to_bytes(data_program_header).to_vec());
     res.append(&mut code);
-    // res.append(&mut data);
+    res.append(&mut data);
     res
 }
 
 enum ProgramHeaderType {
-    Rodata, // Strings
+    Data, // Global data/variables
     Text // Bytecode
 }
 
-fn create_program_header(ph_type: ProgramHeaderType, offset: Elf64_Off, virtual_adress: Elf64_Addr, size: Elf64_Xword) -> Elf64_Phdr {
+/// Create program header for the supplied type of segment
+fn create_program_header(
+    ph_type: ProgramHeaderType,
+    offset: Elf64_Off,
+    virtual_adress: Elf64_Addr,
+    size: Elf64_Xword
+) -> Elf64_Phdr {
     // flags:
     // executable
     let PF_X = 1 << 0;
     // writable
     let PF_W = 1 << 1;
-    // readible
+    // readable
     let PF_R = 1 << 2;
-    let mut flags = PF_R;
-    if let ProgramHeaderType::Text = ph_type {
-        flags |= PF_X;
-    }
+
+    let flags = match ph_type {
+        ProgramHeaderType::Text => PF_X,
+        ProgramHeaderType::Data => PF_R | PF_W,
+    };
 
     Elf64_Phdr {
         // load: gets loaded into memory
@@ -144,22 +163,23 @@ fn create_program_header(ph_type: ProgramHeaderType, offset: Elf64_Off, virtual_
         // Size in memory
         // equal for both the bytecode and the text, but might be different for other types
         p_memsz: size,
-        // TODO: 4096?
+        // 4096 alignment seems to be required in x86_64
         p_align: 0x1000
     }
 }
 
+/// Create the global elf header
 fn create_elf_header(num_pheaders: Elf64_Half, entry_point: Elf64_Addr) -> Elf64_Ehdr {
     let magic_number: u8 = 0x7f;
     // 64 bit objects
     let class: u8 = 2;
     // Least significant byte first
-    // Seems to be only relevant for how the elf stuff gets interpreted
+    // Seems to be only relevant for how the elf stuf gets interpreted
     let data: u8 = 1;
     // Always 1
     let version: u8 = 1;
-    // 3: linux, TODO: usually system v -> 0, even on linux
-    let os_abi: u8 = 0;
+    // 3: linux, usually system v/0, even on linux
+    let os_abi: u8 = 3;
     // Usually never used
     let abi_version: u8 = 0;
 
@@ -173,13 +193,14 @@ fn create_elf_header(num_pheaders: Elf64_Half, entry_point: Elf64_Addr) -> Elf64
         e_type: 2,
         // amd64
         e_machine: 0x3E,
+        // elf version
         e_version: 1,
         // Entry point of address
         e_entry: entry_point,
         // Program headers offset
-        // TODO: All directly in a list after this offset
-        e_phoff: 64,
-        // TODO: Section headers offset
+        // All directly in a list after this header
+        e_phoff: ELF_HEADER_SIZE.into(),
+        // Section headers offset
         e_shoff: 0,
         // Processor specific flags
         e_flags: 0,
@@ -189,11 +210,11 @@ fn create_elf_header(num_pheaders: Elf64_Half, entry_point: Elf64_Addr) -> Elf64
         e_phentsize: PROGRAM_HEADER_SIZE,
         // number of program headers
         e_phnum: num_pheaders,
-        // TODO: size per section header
-        e_shentsize: 0,
-        // TODO: number of section headers
+        // size per section header
+        e_shentsize: 64,
+        // number of section headers
         e_shnum: 0,
-        // TODO: Section header string table index
+        // Section header string table index
         // Used to resolve names of sections in the file
         e_shstrndx: 0,
     }
