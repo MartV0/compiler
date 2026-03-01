@@ -1,4 +1,7 @@
 #![allow(non_camel_case_types, non_snake_case)]
+
+use crate::linking::relocate;
+use crate::compiling::CompilationResult;
 /// In this module the creation of the ELF binary is done, from the already assembled byte code.
 /// Created this file by following these resources:
 /// - Amazing introduction, but stil pretty detailed: https://www.youtube.com/watch?v=nC1U1LJQL8o
@@ -65,31 +68,14 @@ struct Elf64_Shdr {
     sh_entsize: Elf64_Xword,
 }
 
-pub fn create_elf() -> Vec<u8> {
-    let mut data: Vec<u8> = "Hello world\n".as_bytes().to_vec();
-    let data_len: u64 = data.len().try_into().expect("Failed to convert usize to u64");
-    let data_len_bytes = data_len.to_le_bytes();
-    let header_count = 2;
-    let mut code: Vec<u8> = vec![
-        //	mov    eax,0x1
-        0xb8, 0x01, 0x00, 0x00, 0x00,       
-        //	mov    edi,0x1
-        0xbf, 0x01, 0x00, 0x00, 0x00,       
-        //	movabs rsi, pointer to string, placeholder
-        0x48, 0xbe, 0xAA, 0xAA, 0xAA, 0xAA, 0x00, 
-        0x00, 0x00, 0x00,
-        //	mov    edx, length of string
-        0xba, data_len_bytes[0], data_len_bytes[1], data_len_bytes[2], data_len_bytes[3], 
-        //	syscall
-        0x0f, 0x05,                
-        //	mov    eax,0x3c
-        0xb8, 0x3c, 0x00, 0x00, 0x00,       
-        //	mov    edi, exit code: 0x0
-        0xbf, 0x00, 0x00, 0x00, 0x00,       
-        //	syscall
-        0x0f, 0x05                
-    ];
+pub fn create_elf(input: CompilationResult) -> Vec<u8> {
+    let mut code = input.code;
+    let code_relocate = input.code_relocate;
+    let mut data = input.data;
 
+    let header_count = 2;
+
+    // Create code/text header
     let text_file_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE * header_count).into();
     // 0x400000 is default offset for text/code segment
     let code_virtual_address = text_file_offset + 0x400000;
@@ -101,6 +87,8 @@ pub fn create_elf() -> Vec<u8> {
         code_len
     );
 
+    // Create data header
+    let data_len: u64 = data.len().try_into().expect("Failed to convert usize to u64");
     let data_offset = text_file_offset + code_len;
     // Not sure why the + 0x1000 was necessary, but it fixed a segfault so im keeping it hehe
     // Maybe because alignment?
@@ -112,8 +100,8 @@ pub fn create_elf() -> Vec<u8> {
         data_len
     );
 
-    let str_ptr_bytes = data_virtual_address.to_le_bytes();
-    code[12..16].clone_from_slice(&str_ptr_bytes[0..4]);
+    // Relocate all references to data in the code to the new virtual address
+    relocate::relocate(&mut code, code_relocate, data_virtual_address);
 
     // Add all sections of the elf file together
     let header = create_elf_header(header_count, code_virtual_address);

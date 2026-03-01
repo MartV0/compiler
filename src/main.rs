@@ -1,6 +1,7 @@
 mod parsing;
 mod abstract_syntax_tree;
 mod linking;
+mod compiling;
 
 use std::{env, fs};
 use nom::error::Error;
@@ -13,7 +14,7 @@ fn main() {
         .expect("Failed to read input code file");
     let out_file_path = &args[2];
     let parsed_program: Result<_, Err<Error<_>>> = parsing::parse(&in_file_contents);
-    let binary = linking::elf::create_elf();
+    let compiled_program = compiling::compile(parsed_program.expect("failed to parse program"));
+    let binary = linking::elf::create_elf(compiled_program);
     fs::write(out_file_path, binary).expect("failed to write to file");
-    println!("{parsed_program:?}");
 }
