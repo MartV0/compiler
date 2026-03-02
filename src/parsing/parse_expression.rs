@@ -3,7 +3,7 @@ use super::*;
 use nom::{
     IResult,
     branch::alt,
-    bytes::complete::tag,
+    bytes::complete::{tag, escaped_transform, is_not},
     character::complete::digit1,
     combinator::{map, value},
     error::ParseError,
@@ -24,6 +24,7 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
     alt((
         value(Expression::Literal(Literal::Bool(true)), tag("True")),
         value(Expression::Literal(Literal::Bool(false)), tag("False")),
+        map(string_literal, |s| Expression::Literal(Literal::String(s))),
         map(digit1, |str| {
             Expression::Literal(Literal::Int(str::parse(str).expect("should be parseble")))
         }),
@@ -31,6 +32,25 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
         map(identifier, |ident| Expression::Var(ident.to_string())),
         parenthesised(expression),
     ))(i)
+}
+
+/// Parses a string literal
+fn string_literal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, String, E> {
+    let (i, _) = optional_ws(i)?;
+    let (i, _) = tag("\"")(i)?;
+    let (i, string_content) = escaped_transform(
+        is_not("\\\""), 
+        '\\',
+        alt((
+          value("\\", tag("\\")),
+          value("\"", tag("\"")),
+          value("\n", tag("n")),
+          value("\t", tag("t")),
+          value("\r", tag("r"))
+        ))
+    )(i)?;
+    let (i, _) = tag("\"")(i)?;
+    Ok((i, string_content.to_string()))
 }
 
 /// Parses function call expression
@@ -228,6 +248,19 @@ mod tests {
                         Box::new(Expression::Var("d".to_string())),
                     )),
                 )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_str_expression() {
+        let test_string = r#""HELLO there \r \n \\ \"""#;
+        let res: IResult<_, _, Error<_>> = expression(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                Expression::Literal(Literal::String("HELLO there \r \n \\ \"".to_string()))
             ))
         );
     }

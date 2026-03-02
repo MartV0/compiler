@@ -61,6 +61,7 @@ fn type_<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Type, 
         value(Type::Bool, tag("Bool")),
         value(Type::Int, tag("Int")),
         value(Type::Void, tag("Void")),
+        value(Type::String, tag("String")),
     ))(i)
 }
 
@@ -84,6 +85,37 @@ mod tests {
     use super::*;
     use nom::error::Error;
 
+    #[test]
+    fn test_hello_world() {
+        let test_string = r#"
+            Int main() {
+                print("Hello world!");
+                return 0;
+            }
+        "#;
+        let res: Result<_, Err<Error<_>>> = parse(&test_string);
+        assert_eq!(
+            res,
+            Ok(Program {
+                functions: vec![Function {
+                    return_type: Type::Int,
+                    arguments: vec![],
+                    indentifier: "main".to_string(),
+                    body: vec![
+                        Statement::Expression(Expression::FunctionCall(
+                            "print".to_string(),
+                            vec![
+                                Expression::Literal(Literal::String("Hello world!".to_string()))
+                            ]
+                        )),
+                        Statement::Return(Expression::Literal(Literal::Int(0)))
+                    ]
+                }],
+                variables: vec![],
+            })
+        );
+    }
+    
     #[test]
     fn test_full_parser() {
         let test_string = "
