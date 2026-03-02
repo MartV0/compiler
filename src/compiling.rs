@@ -1,4 +1,5 @@
 use crate::abstract_syntax_tree;
+use crate::linking::elf::SegmentType;
 use crate::linking::relocate;
 
 /// Struct containing the raw bytecode and data, still needs to be converted to elf/linked
@@ -35,8 +36,9 @@ pub fn compile(program: abstract_syntax_tree::Program) -> CompilationResult {
 
     let relocate = vec![
         relocate::RelocationEntrie{
-            index: 12,
-            bytes: 4
+            offset: 12,
+            bytes: 4,
+            segment: SegmentType::Data
         }
     ];
 

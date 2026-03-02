@@ -68,59 +68,55 @@ struct Elf64_Shdr {
     sh_entsize: Elf64_Xword,
 }
 
-pub fn create_elf(input: CompilationResult) -> Vec<u8> {
-    let mut code = input.code;
-    let code_relocate = input.code_relocate;
-    let mut data = input.data;
+pub enum SegmentType {
+    Data, // Global data/variables
+    Text // Bytecode
+}
 
+pub fn create_elf(mut input: CompilationResult) -> Vec<u8> {
     let header_count = 2;
 
     // Create code/text header
     let text_file_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE * header_count).into();
     // 0x400000 is default offset for text/code segment
     let code_virtual_address = text_file_offset + 0x400000;
-    let code_len: u64 = code.len().try_into().expect("Failed to convert usize to u64");
+    let code_len: u64 = input.code.len().try_into().expect("Failed to convert usize to u64");
     let text_program_header = create_program_header(
-        ProgramHeaderType::Text, 
+        SegmentType::Text, 
         text_file_offset,
         code_virtual_address,
         code_len
     );
 
     // Create data header
-    let data_len: u64 = data.len().try_into().expect("Failed to convert usize to u64");
+    let data_len: u64 = input.data.len().try_into().expect("Failed to convert usize to u64");
     let data_offset = text_file_offset + code_len;
     // Not sure why the + 0x1000 was necessary, but it fixed a segfault so im keeping it hehe
     // Maybe because alignment?
     let data_virtual_address: u64 = code_virtual_address + code_len + 0x1000;
     let data_program_header = create_program_header(
-        ProgramHeaderType::Data, 
+        SegmentType::Data, 
         data_offset,
         data_virtual_address, 
         data_len
     );
 
     // Relocate all references to data in the code to the new virtual address
-    relocate::relocate(&mut code, code_relocate, data_virtual_address);
+    relocate::relocate(&mut input, code_virtual_address, data_virtual_address);
 
     // Add all sections of the elf file together
     let header = create_elf_header(header_count, code_virtual_address);
     let mut res = elf_header_to_bytes(header).to_vec();
     res.append(&mut program_header_to_bytes(text_program_header).to_vec());
     res.append(&mut program_header_to_bytes(data_program_header).to_vec());
-    res.append(&mut code);
-    res.append(&mut data);
+    res.append(&mut input.code);
+    res.append(&mut input.data);
     res
-}
-
-enum ProgramHeaderType {
-    Data, // Global data/variables
-    Text // Bytecode
 }
 
 /// Create program header for the supplied type of segment
 fn create_program_header(
-    ph_type: ProgramHeaderType,
+    ph_type: SegmentType,
     offset: Elf64_Off,
     virtual_adress: Elf64_Addr,
     size: Elf64_Xword
@@ -134,8 +130,8 @@ fn create_program_header(
     let PF_R = 1 << 2;
 
     let flags = match ph_type {
-        ProgramHeaderType::Text => PF_X,
-        ProgramHeaderType::Data => PF_R | PF_W,
+        SegmentType::Text => PF_X,
+        SegmentType::Data => PF_R | PF_W,
     };
 
     Elf64_Phdr {
