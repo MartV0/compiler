@@ -1,9 +1,10 @@
+use crate::assembling::AssemblingResult;
 /// For this module I took some inspiration from here: 
 /// https://refspecs.linuxbase.org/elf/gabi4+/ch4.reloc.html
 use crate::linking::elf::SegmentType;
-use crate::compiling::CompilationResult;
 
 /// Corresponds to an address somewhere that needs to be fixed during linking
+#[derive(Debug)]
 pub struct RelocationEntrie {
     /// Index of address to relocate in the segment, measured from the beginning
     pub offset: usize,
@@ -18,8 +19,8 @@ pub struct RelocationEntrie {
 /// Relocate address listed in entries
 /// Changes addresses that are currently relative to the beginning of a segment
 /// to their proper location in the virtual memory
-pub fn relocate(input: &mut CompilationResult, code_base_address: u64, data_base_address: u64) {
-    let CompilationResult { code, data: _data, code_relocate } = input;
+pub fn relocate(input: &mut AssemblingResult, code_base_address: u64, data_base_address: u64) {
+    let AssemblingResult { code, data: _data, code_relocate } = input;
     relocate_segment(code, code_relocate, code_base_address, data_base_address);
 }
 

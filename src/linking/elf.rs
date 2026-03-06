@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types, non_snake_case)]
 
+use crate::assembling::AssemblingResult;
 use crate::linking::relocate;
-use crate::compiling::CompilationResult;
 /// In this module the creation of the ELF binary is done, from the already assembled byte code.
 /// Created this file by following these resources:
 /// - Amazing introduction, but stil pretty detailed: https://www.youtube.com/watch?v=nC1U1LJQL8o
@@ -68,12 +68,13 @@ struct Elf64_Shdr {
     sh_entsize: Elf64_Xword,
 }
 
+#[derive(Debug)]
 pub enum SegmentType {
     Data, // Global data/variables
     Text // Bytecode
 }
 
-pub fn create_elf(mut input: CompilationResult) -> Vec<u8> {
+pub fn create_elf(mut input: AssemblingResult) -> Vec<u8> {
     let header_count = 2;
 
     // Create code/text header
