@@ -1,9 +1,9 @@
 use crate::abstract_syntax_tree;
 use crate::abstract_syntax_tree::{
-    Expression, Function, Operator, Program, Statement, Type, Variable,
+    Expression, Function, Program, Statement, Variable,
 };
-use crate::assembling::ImmediateValue;
-use crate::assembling::{
+use crate::assembling::assembly::ImmediateValue;
+use crate::assembling::assembly::{
     ImmediateValue::*,
     Instruction::{self, *},
     Operand::*,
@@ -15,9 +15,10 @@ use std::collections::HashMap;
 /// Struct containing the raw bytecode and data, still needs to be converted to elf/linked
 pub struct CompilationResult {
     pub code: Vec<Instruction>,
-    pub data: HashMap<crate::assembling::Label, Vec<u8>>,
+    pub data: HashMap<crate::assembling::assembly::Label, Vec<u8>>,
 }
 
+/// name used for main function
 const MAIN_LABEL: &str = "main";
 
 /// Generates bytecode section, and string section from AST
@@ -30,6 +31,8 @@ pub fn compile(program: Program) -> CompilationResult {
     output
 }
 
+/// Compiles the program
+/// Outputs code for every variable and function, and code that calls the main function
 fn compile_program(program: Program, output: &mut CompilationResult) {
     let Program {
         functions,
@@ -56,14 +59,17 @@ fn compile_program(program: Program, output: &mut CompilationResult) {
     }
 }
 
+/// Create label for return section
 fn format_return_label(function_name: &str) -> String {
     format!("return+{function_name}")
 }
 
+/// Compile a global variable declaration
 fn compile_variable(_variable: Variable, _output: &mut CompilationResult) {
     todo!()
 }
 
+/// Compile a function definition
 fn compile_function(function: Function, output: &mut CompilationResult) {
     if function.arguments.len() > 0 {
         todo!("function arguments not supported yet")
@@ -88,13 +94,14 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
     ]);
 }
 
+/// Compile a statement
 fn compile_statement(
     statement: Statement,
     current_function: &Function,
     output: &mut CompilationResult,
 ) {
     match statement {
-        Statement::Declaration(variable) => todo!(),
+        Statement::Declaration(_) => todo!(),
         Statement::Expression(expression) => {
             compile_expression(expression, output);
             // TODO: depends on type of expression
@@ -123,6 +130,7 @@ fn compile_statement(
     }
 }
 
+/// Compile an expression, leaves result of the expression on the stack
 fn compile_expression(expression: Expression, output: &mut CompilationResult) {
     match expression {
         Expression::Literal(literal) => compile_literal(literal, output),
@@ -132,6 +140,7 @@ fn compile_expression(expression: Expression, output: &mut CompilationResult) {
     }
 }
 
+/// Compile a literal expression
 fn compile_literal(literal: abstract_syntax_tree::Literal, output: &mut CompilationResult) {
     match literal {
         abstract_syntax_tree::Literal::Bool(b) => {
