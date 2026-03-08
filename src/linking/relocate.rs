@@ -42,4 +42,3 @@ fn relocate_segment(file: &mut Vec<u8>, entries: &Vec<RelocationEntrie>, code_ba
         file[offset..offset + bytes].clone_from_slice(&new_address.to_le_bytes()[0..bytes]);
     }
 }
-

@@ -68,7 +68,7 @@ struct Elf64_Shdr {
     sh_entsize: Elf64_Xword,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SegmentType {
     Data, // Global data/variables
     Text // Bytecode
