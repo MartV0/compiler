@@ -5,8 +5,9 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
     character::complete::satisfy,
-    combinator::{all_consuming, peek, value},
+    combinator::{all_consuming, map, opt, peek, value},
     error::ParseError,
+    multi::many1,
 };
 
 mod parse_expression;
@@ -15,12 +16,6 @@ mod parse_program;
 /// Parse a complete program
 pub fn parse<'a, E: ParseError<&'a str> + 'a>(input: &'a str) -> Result<Program, Err<E>> {
     Ok(all_consuming(parse_program::program)(input)?.1)
-}
-
-/// Parses 1 or more whitespace characters
-fn whitespace<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &'a str, E> {
-    let chars = " \t\r\n";
-    take_while1(move |c| chars.contains(c))(i)
 }
 
 /// Parser with parenthesis around it, with optional whitespace
@@ -40,10 +35,31 @@ where
     }
 }
 
-/// Optionally parses whitespace
-fn optional_ws<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+/// Parses 1 or more whitespace characters
+fn whitespace<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, (), E> {
     let chars = " \t\r\n";
-    take_while(move |c| chars.contains(c))(i)
+    map(
+        many1(
+            alt((
+            take_while1(move |c| chars.contains(c)),
+            parse_comment
+            ))
+        ),
+        | _ | ()
+    )(i)
+}
+
+/// Parse a single comment
+fn parse_comment<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+    let (i, _) = tag("//")(i)?;
+    let (i, comment) = take_while1(move |c| c != '\n')(i)?;
+    let (i, _) = tag("\n")(i)?;
+    Ok((i, comment))
+}
+
+/// Optionally parses whitespace
+fn optional_ws<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, (), E> {
+    map(opt(whitespace), | _ | ())(i)
 }
 
 /// Parses a variable or function indentifier
@@ -121,11 +137,15 @@ mod tests {
         let test_string = "
             Int var1;
 
+            // This is a comment
+            // Another comment
             Int function(Int arg1, Bool arg2) {
                 Int var2;
                 if (arg2) {
                     var2 = 2;
                 }
+                // Ignore this!
+                // And this!
                 else {
                     var2 = 3;
                 }
