@@ -2,7 +2,7 @@ use crate::linking::elf::SegmentType;
 
 use Register::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     // Not an actual instruction, just used to point to a location in the code
     ILabel(Label),
@@ -10,8 +10,7 @@ pub enum Instruction {
     Syscall,
     Jmp(Operand),
     Pop(Operand),
-    PushI(ImmediateValue, OperandSize),
-    PushR(Register),
+    Push(Operand),
     Call(Operand),
     Leave,
     Ret,
@@ -19,7 +18,7 @@ pub enum Instruction {
     Add(Operand, Operand),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operand {
     Immediate(ImmediateValue),
     Offset(ImmediateValue),
@@ -32,7 +31,7 @@ pub enum Operand {
 /// needed to figure out how much bytes to push
 pub type OperandSize = u8;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ImmediateValue {
     Literal(i64),
     Label(Label, SegmentType),
@@ -42,7 +41,7 @@ pub type Label = String;
 
 #[allow(dead_code)]
 #[rustfmt::skip]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Register {
     RAX, EAX,  AX,   AH,   AL,
     RBX, EBX,  BX,   BH,   BL,

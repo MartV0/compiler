@@ -55,4 +55,13 @@ mod tests {
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_stdout_syscall() {
+        let program = include_str!("../test_programs/StdoutSyscall.poo");
+        let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "Hello World!".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
 }

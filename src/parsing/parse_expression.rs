@@ -29,6 +29,7 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
             Expression::Literal(Literal::Int(str::parse(str).expect("should be parseble")))
         }),
         function_call,
+        builtin_function_call,
         map(identifier, |ident| Expression::Var(ident.to_string())),
         parenthesised(expression),
     ))(i)
@@ -63,6 +64,19 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
         expression,
     ))(i)?;
     Ok((i, Expression::FunctionCall(ident.to_string(), arguments)))
+}
+
+/// Parses a builtin function call expression
+fn builtin_function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    let (i, _) = optional_ws(i)?;
+    let (i, ident) = identifier(i)?;
+    let (i, _) = tag("!")(i)?;
+    let (i, _) = optional_ws(i)?;
+    let (i, arguments) = parenthesised(separated_list0(
+        tuple((optional_ws, tag(","), optional_ws)),
+        expression,
+    ))(i)?;
+    Ok((i, Expression::BuiltInFunctionCall(ident.to_string(), arguments)))
 }
 
 /// Parse left associatively, based on a given operator and expression parser

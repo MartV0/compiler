@@ -104,9 +104,9 @@ mod tests {
                     body: vec![
                         Statement::Expression(Expression::FunctionCall(
                             "print".to_string(),
-                            vec![
-                                Expression::Literal(Literal::String("Hello world!".to_string()))
-                            ]
+                            vec![Expression::Literal(Literal::String(
+                                "Hello world!".to_string()
+                            ))]
                         )),
                         Statement::Return(Expression::Literal(Literal::Int(0)))
                     ]
@@ -115,7 +115,7 @@ mod tests {
             })
         );
     }
-    
+
     #[test]
     fn test_full_parser() {
         let test_string = "
@@ -132,6 +132,9 @@ mod tests {
                 while(arg2) {
                     arg2 = False;
                 }
+
+                syscall!(1, 2);
+
                 return 4;
             }
         ";
@@ -178,6 +181,13 @@ mod tests {
                                 Box::new(Expression::Literal(Literal::Bool(false))),
                             ))]
                         },
+                        Statement::Expression(Expression::BuiltInFunctionCall(
+                            "syscall".to_string(),
+                            vec![
+                                Expression::Literal(Literal::Int(1)),
+                                Expression::Literal(Literal::Int(2))
+                            ]
+                        )),
                         Statement::Return(Expression::Literal(Literal::Int(4)))
                     ]
                 }],

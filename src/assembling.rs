@@ -144,7 +144,7 @@ mod tests {
             .expect("Failed to convert usize to u64");
         let hello_label = "hello_string".to_string();
         let code: Vec<Instruction> = vec![
-            //	sys_read system call
+            //	sys_write system call
             Mov(Register(EAX), Immediate(Literal(0x1))),
             //	file descriptor = stdout
             Mov(Register(EDI), Immediate(Literal(0x1))),

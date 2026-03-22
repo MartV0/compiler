@@ -63,6 +63,8 @@ pub enum Expression {
     // TODO: negation?
     Operator(Operator, Box<Expression>, Box<Expression>),
     FunctionCall(Indentifier, Vec<Expression>),
+    // Call to some built in language construct, like syscall
+    BuiltInFunctionCall(Indentifier, Vec<Expression>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

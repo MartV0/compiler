@@ -1,4 +1,7 @@
+mod compile_expression;
+
 use crate::abstract_syntax_tree;
+use compile_expression::compile_expression;
 use crate::abstract_syntax_tree::{
     Expression, Function, Program, Statement, Variable,
 };
@@ -77,7 +80,7 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
 
     output.code.append(&mut vec![
         ILabel(function.indentifier.clone()),
-        PushR(RBP),
+        Push(Register(RBP)),
         Mov(Register(RBP), Register(RSP)),
         // TODO: adjust RSP for local variables
     ]);
@@ -105,6 +108,7 @@ fn compile_statement(
         Statement::Expression(expression) => {
             compile_expression(expression, output);
             // TODO: depends on type of expression
+            // Expression left result on the stack, pop this
             output
                 .code
                 .push(Sub(Register(RSP), Immediate(Literal(0x8))));
@@ -130,32 +134,3 @@ fn compile_statement(
     }
 }
 
-/// Compile an expression, leaves result of the expression on the stack
-fn compile_expression(expression: Expression, output: &mut CompilationResult) {
-    match expression {
-        Expression::Literal(literal) => compile_literal(literal, output),
-        Expression::Var(_) => todo!(),
-        Expression::Operator(operator, expression, expression1) => todo!(),
-        Expression::FunctionCall(_, expressions) => todo!(),
-    }
-}
-
-/// Compile a literal expression
-fn compile_literal(literal: abstract_syntax_tree::Literal, output: &mut CompilationResult) {
-    match literal {
-        abstract_syntax_tree::Literal::Bool(b) => {
-            let val = if b { 1 } else { 0 };
-            output.code.push(PushI(Literal(val), 1))
-        }
-        abstract_syntax_tree::Literal::Int(i) => {
-            // No push instruction with immediate 8 byte size, so we divide over two operations
-            // TODO: order right here?
-            // output.code.push(PushI(Literal(i & 0xFFFFFFFF), 4));
-            // output.code.push(PushI(Literal(i >> 32), 4))
-            // TODO: Seems like push and pop are always 64 bit?
-            // https://stackoverflow.com/questions/43435764/64-bit-mode-does-not-support-32-bit-push-and-pop-instructions
-            output.code.push(PushI(Literal(i), 4))
-        }
-        abstract_syntax_tree::Literal::String(_) => todo!(),
-    }
-}
