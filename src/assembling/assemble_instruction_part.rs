@@ -12,12 +12,18 @@ pub enum RegValue {
 /// - output: where to output the bytecode
 /// - rm: r/m argument, usually the first operand
 /// - reg: reg argument, usually the second operand, or opcode extension
-pub fn add_rex_opcode_modrm(
+pub fn add_rex_opcode_modrm_offset(
     output: &mut IntermediateAssemblingResult,
     mut opcode: Vec<u8>,
-    rm: Register,
+    rm: Operand,
     reg: RegValue,
 ) {
+    let (rm, offset) = match rm {
+        Operand::IndirectOffset(register, immediate_value) => (register, Some(immediate_value)),
+        Operand::Register(register) => (register, None),
+        rm => panic!("{rm:?} not supported in modrm field")
+    };
+
     // Create 4 bit register codes
     let rm_bits = reg_to_XREG_bits(&rm);
     let reg_bits = match reg {
@@ -46,11 +52,24 @@ pub fn add_rex_opcode_modrm(
 
     // Create modr/m byte
     // TODO: addressing modes
-    let mod_ = 0b11;
+    let mod_ = match offset {
+        // direct
+        None => 0b11,
+        // indirect with offset
+        Some(_) => { 
+            if rm == SP || rm == R12 {
+                panic!("SP and R12 register have to be encoded with SIB");
+            }
+            0b10
+        }
+    };
     let reg = reg_bits & 0b111;
     let rm = rm_bits & 0b111;
     let mod_reg_rm = mod_ << 6 | reg << 3 | rm;
     output.code.push(mod_reg_rm);
+    if let Some(offset) = offset {
+        add_offset(output, ImmediateValue::Literal(offset.into()), 4, LabelType::Absolute);
+    }
 }
 
 /// Same as add_rex_opcode_modrm but assumes 64 bit size operants, meaning
@@ -58,7 +77,7 @@ pub fn add_rex_opcode_modrm(
 pub fn add_rex_opcode_modrm64bit(
     output: &mut IntermediateAssemblingResult,
     opcode: Vec<u8>,
-    rm: Register,
+    rm: Operand,
     reg: RegValue,
 ) {
     // Just converts the 64 bit register to 32 bit ones and use regular function
@@ -66,8 +85,14 @@ pub fn add_rex_opcode_modrm64bit(
         RegValue::Register(register) => RegValue::Register(reg64_to_reg32(register)),
         x => x,
     };
+    let rm = match rm {
+        Operand::IndirectOffset(register, a) => Operand::IndirectOffset(reg64_to_reg32(register), a),
+        Operand::Register(register) => Operand::Register(reg64_to_reg32(register)),
+        Operand::Indirect(register) => Operand::Indirect(reg64_to_reg32(register)),
+        x => x
+    };
 
-    add_rex_opcode_modrm(output, opcode, reg64_to_reg32(rm), reg);
+    add_rex_opcode_modrm_offset(output, opcode, rm, reg);
 }
 
 /// Adds the immediate part to the instruction

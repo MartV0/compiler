@@ -21,7 +21,7 @@ pub enum Instruction {
 #[derive(Debug, Clone)]
 pub enum Operand {
     Immediate(ImmediateValue),
-    Offset(ImmediateValue),
+    IndirectOffset(Register, i32),
     Register(Register),
     Indirect(Register),
 }
@@ -41,7 +41,7 @@ pub type Label = String;
 
 #[allow(dead_code)]
 #[rustfmt::skip]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Register {
     RAX, EAX,  AX,   AH,   AL,
     RBX, EBX,  BX,   BH,   BL,

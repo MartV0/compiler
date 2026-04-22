@@ -1,0 +1,7 @@
+Int main() {
+    return test_function(100, 20, 3);
+}
+
+Int test_function(Int a, Int b, Int c) {
+    return a + b + c;
+}

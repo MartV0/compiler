@@ -21,6 +21,11 @@ pub struct CompilationResult {
     pub data: HashMap<crate::assembling::assembly::Label, Vec<u8>>,
 }
 
+struct Environment<'a> {
+    // Local variables, map from variable name to offset relative to rbp
+    local: HashMap<&'a str, i32>
+}
+
 /// name used for main function
 const MAIN_LABEL: &str = "main";
 
@@ -74,8 +79,18 @@ fn compile_variable(_variable: Variable, _output: &mut CompilationResult) {
 
 /// Compile a function definition
 fn compile_function(function: Function, output: &mut CompilationResult) {
-    if function.arguments.len() > 0 {
-        todo!("function arguments not supported yet")
+    let mut env = Environment {
+        local: HashMap::new()
+    };
+    //rbp=previous saved rbp
+    //rbp+8=return adress
+    //rbp+16=last func arg
+    //rbp+24=second to last func arg
+    let mut offset: i32 = 16;
+    for arg in function.arguments.iter().rev() {
+        env.local.insert(&arg.identifier, offset);
+        // TODO: depends on arg size
+        offset += 8;
     }
 
     output.code.append(&mut vec![
@@ -86,7 +101,7 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
     ]);
 
     for statement in function.body.iter() {
-        compile_statement(statement.clone(), &function, output);
+        compile_statement(statement.clone(), &function, output, &mut env);
     }
 
     output.code.append(&mut vec![
@@ -102,11 +117,12 @@ fn compile_statement(
     statement: Statement,
     current_function: &Function,
     output: &mut CompilationResult,
+    env: &mut Environment
 ) {
     match statement {
         Statement::Declaration(_) => todo!(),
         Statement::Expression(expression) => {
-            compile_expression(expression, output);
+            compile_expression(expression, output, env);
             // TODO: depends on type of expression
             // Expression left result on the stack, pop this
             output
@@ -120,7 +136,7 @@ fn compile_statement(
         } => todo!(),
         Statement::While { condition, body } => todo!(),
         Statement::Return(expression) => {
-            compile_expression(expression, output);
+            compile_expression(expression, output, env);
             output.code.append(&mut vec![
                 // Put expression result into RAX register
                 Pop(Register(RAX)),

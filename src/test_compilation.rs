@@ -43,12 +43,7 @@ mod tests {
 
     #[test]
     fn test_hello_world() {
-        let program = r#"
-            Int main() {
-                print("Hello world\n");
-                return 0;
-            }
-        "#;
+        let program = include_str!("../test_programs/HelloWorld.poo");
         let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "Hello world\n".as_bytes().to_vec());
@@ -58,6 +53,15 @@ mod tests {
     #[test]
     fn test_return_code() {
         let program = include_str!("../test_programs/ReturnCode.poo");
+        let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(123));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_simple_function() {
+        let program = include_str!("../test_programs/SimpleFunction.poo");
         let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
         assert_eq!(status.code(), Some(123));
         assert_eq!(stdout, vec![]);
