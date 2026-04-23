@@ -4,6 +4,7 @@ mod linking;
 mod compiling;
 mod test_compilation;
 mod assembling;
+mod library;
 
 use std::path::Path;
 use std::{env, fs};
@@ -21,7 +22,9 @@ fn main() {
 
 fn compile(program: &str, out_file_path: &Path) {
     let parsed_program: Result<_, Err<Error<_>>> = parsing::parse(&program);
-    let compiled_program = compiling::compile(parsed_program.expect("failed to parse program"));
+    let mut parsed_program = parsed_program.expect("failed to parse program");
+    library::add_library(&mut parsed_program);
+    let compiled_program = compiling::compile(parsed_program);
     print_compiled(&compiled_program);
     let assembled_program = assembling::assemble(compiled_program);
     print_vecu8(&assembled_program.code);
