@@ -56,6 +56,36 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
             add_rex_opcode_modrm_offset(output, vec![0x81], Operand::Register(reg), RegValue::Extension(5));
             add_immediate(output, val, 4);
         }
+        Instruction::Add(Operand::Register(reg), Operand::Immediate(val))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x81], Operand::Register(reg), RegValue::Extension(0));
+            add_immediate(output, val, 4);
+        }
+        Instruction::Cmp(Operand::Register(reg), Operand::Immediate(val))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x81], Operand::Register(reg), RegValue::Extension(7));
+            add_immediate(output, val, 4);
+        }
+        Instruction::JE(op) => {
+            output.code.append(&mut vec![0x0F, 0x84]);
+            add_offset(
+                output,
+                op,
+                4,
+                LabelType::Relative
+            );
+        }
+        Instruction::JNE(op) => {
+            output.code.append(&mut vec![0x0F, 0x85]);
+            add_offset(
+                output,
+                op,
+                4,
+                LabelType::Relative
+            );
+        }
         Instruction::Add(Operand::Register(reg), Operand::Register(rm))
             if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
         {

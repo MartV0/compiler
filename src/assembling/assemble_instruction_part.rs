@@ -18,8 +18,8 @@ pub fn add_rex_opcode_modrm_offset(
     rm: Operand,
     reg: RegValue,
 ) {
-    let (rm, offset) = match rm {
-        Operand::IndirectOffset(register, immediate_value) => (register, Some(immediate_value)),
+    let (rm, displacement) = match rm {
+        Operand::IndirectDisplacement(register, immediate_value) => (register, Some(immediate_value)),
         Operand::Register(register) => (register, None),
         rm => panic!("{rm:?} not supported in modrm field")
     };
@@ -52,12 +52,13 @@ pub fn add_rex_opcode_modrm_offset(
 
     // Create modr/m byte
     // TODO: addressing modes
-    let mod_ = match offset {
+    let mod_ = match displacement {
         // direct
         None => 0b11,
         // indirect with offset
         Some(_) => { 
-            if rm == SP || rm == R12 {
+            // TODO: check for all registers, also esp etc
+            if rm == RSP || rm == R12 {
                 panic!("SP and R12 register have to be encoded with SIB");
             }
             0b10
@@ -67,8 +68,8 @@ pub fn add_rex_opcode_modrm_offset(
     let rm = rm_bits & 0b111;
     let mod_reg_rm = mod_ << 6 | reg << 3 | rm;
     output.code.push(mod_reg_rm);
-    if let Some(offset) = offset {
-        add_offset(output, ImmediateValue::Literal(offset.into()), 4, LabelType::Absolute);
+    if let Some(displacement) = displacement {
+        add_offset(output, ImmediateValue::Literal(displacement.into()), 4, LabelType::Absolute);
     }
 }
 
@@ -86,7 +87,7 @@ pub fn add_rex_opcode_modrm64bit(
         x => x,
     };
     let rm = match rm {
-        Operand::IndirectOffset(register, a) => Operand::IndirectOffset(reg64_to_reg32(register), a),
+        Operand::IndirectDisplacement(register, a) => Operand::IndirectDisplacement(reg64_to_reg32(register), a),
         Operand::Register(register) => Operand::Register(reg64_to_reg32(register)),
         Operand::Indirect(register) => Operand::Indirect(reg64_to_reg32(register)),
         x => x

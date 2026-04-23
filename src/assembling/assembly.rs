@@ -9,19 +9,22 @@ pub enum Instruction {
     Mov(Operand, Operand),
     Syscall,
     Jmp(Operand),
+    JE(ImmediateValue),
+    JNE(ImmediateValue),
     Pop(Operand),
     Push(Operand),
     Call(Operand),
     Leave,
     Ret,
     Sub(Operand, Operand),
+    Cmp(Operand, Operand),
     Add(Operand, Operand),
 }
 
 #[derive(Debug, Clone)]
 pub enum Operand {
     Immediate(ImmediateValue),
-    IndirectOffset(Register, i32),
+    IndirectDisplacement(Register, i32),
     Register(Register),
     Indirect(Register),
 }

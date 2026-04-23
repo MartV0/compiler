@@ -140,5 +140,5 @@ fn compile_variable(
     env: &mut Environment
 ) {
     let offset = env.local.get(identifier.as_str()).expect("Undefined variable");
-    output.code.push(Push(IndirectOffset(RBP, *offset)));
+    output.code.push(Push(IndirectDisplacement(RBP, *offset)));
 }

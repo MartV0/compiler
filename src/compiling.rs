@@ -1,5 +1,6 @@
 mod compile_expression;
 
+use rand::distr::{Alphanumeric, SampleString};
 use crate::abstract_syntax_tree;
 use compile_expression::compile_expression;
 use crate::abstract_syntax_tree::{
@@ -72,6 +73,14 @@ fn format_return_label(function_name: &str) -> String {
     format!("return+{function_name}")
 }
 
+/// Create random label
+fn format_random_label(str: &str) -> String {
+    let mut label = str.to_string();
+    let mut rng = rand::rng();
+    Alphanumeric.append_string(&mut rng, &mut label, 20);
+    label
+}
+
 /// Compile a global variable declaration
 fn compile_variable(_variable: Variable, _output: &mut CompilationResult) {
     todo!()
@@ -100,9 +109,7 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
         // TODO: adjust RSP for local variables
     ]);
 
-    for statement in function.body.iter() {
-        compile_statement(statement.clone(), &function, output, &mut env);
-    }
+    compile_block(&function.body, &function, output, &mut env);
 
     output.code.append(&mut vec![
         ILabel(format_return_label(&function.indentifier)),
@@ -127,14 +134,16 @@ fn compile_statement(
             // Expression left result on the stack, pop this
             output
                 .code
-                .push(Sub(Register(RSP), Immediate(Literal(0x8))));
+                .push(Add(Register(RSP), Immediate(Literal(0x8))));
         }
         Statement::If {
             condition,
             then_branch,
             else_branch,
-        } => todo!(),
-        Statement::While { condition, body } => todo!(),
+        } => {
+            compile_if_statement(condition, then_branch, else_branch, current_function, output, env);
+        },
+        Statement::While { condition, body } => compile_while_statement(condition, body, current_function, output, env),
         Statement::Return(expression) => {
             compile_expression(expression, output, env);
             output.code.append(&mut vec![
@@ -150,3 +159,89 @@ fn compile_statement(
     }
 }
 
+fn compile_if_statement(
+    condition: Expression,
+    then_branch: Vec<Statement>,
+    else_branch: Vec<Statement>,
+    current_function: &Function,
+    output: &mut CompilationResult,
+    env: &mut Environment
+) {
+    // Compile condition
+    compile_expression(condition, output, env);
+    let begin_else_label = format_random_label("begin_else+");
+    output.code.append(&mut vec![
+        // Put condition result into R14
+        Pop(Register(R14)),
+        // Cmp to zero
+        Cmp(Register(R14), Immediate(Literal(0))),
+        // Jump over then branch if condition is zero
+        JE(ImmediateValue::Label(
+            begin_else_label.clone(),
+            SegmentType::Text,
+        )),
+    ]);
+
+    // Compile then branch
+    compile_block(&then_branch, current_function, output, env);
+
+    let end_else_label = format_random_label("end_else+");
+    output.code.append(&mut vec![
+        // Jump over else branch
+        Jmp(Immediate(ImmediateValue::Label(
+            end_else_label.clone(),
+            SegmentType::Text,
+        ))),
+        ILabel(begin_else_label),
+    ]);
+
+    // Compile else branch
+    compile_block(&else_branch, current_function, output, env);
+
+    output.code.push(ILabel(end_else_label));
+}
+
+fn compile_while_statement(
+    condition: Expression,
+    body: Vec<Statement>,
+    current_function: &Function,
+    output: &mut CompilationResult,
+    env: &mut Environment
+) {
+    let body_label = format_random_label("while_body+");
+    let condition_label = format_random_label("while_condition+");
+    output.code.append(&mut vec![
+        // Jump to condition
+        Jmp(Immediate(ImmediateValue::Label(
+            condition_label.clone(),
+            SegmentType::Text,
+        ))),
+        ILabel(body_label.clone()),
+    ]);
+    compile_block(&body, current_function, output, env);
+    output.code.push(ILabel(condition_label));
+    compile_expression(condition, output, env);
+    output.code.append(&mut vec![
+        // Put condition result into R14
+        Pop(Register(R14)),
+        // Cmp to zero
+        Cmp(Register(R14), Immediate(Literal(0))),
+        // Jump to body if condition is not zero
+        JNE(ImmediateValue::Label(
+            body_label,
+            SegmentType::Text,
+        )),
+    ]);
+}
+
+fn compile_block(
+    statements: &Vec<Statement>,
+    current_function: &Function,
+    output: &mut CompilationResult,
+    env: &mut Environment
+)
+{
+    for statement in statements {
+        compile_statement(statement.clone(), &current_function, output, env);
+    }
+}

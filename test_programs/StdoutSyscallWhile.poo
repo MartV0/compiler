@@ -1,0 +1,6 @@
+Int main() {
+    while (1) {
+        syscall!(1, 1, "Hello World!", 12);
+    }
+    return 0;
+}
