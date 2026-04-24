@@ -19,6 +19,8 @@ pub enum Instruction {
     Sub(Operand, Operand),
     Cmp(Operand, Operand),
     Add(Operand, Operand),
+    /// Computes the effective address of the second operand (the source operand) and stores it in the first operand (destination operand)
+    LEA(Operand, Operand)
 }
 
 #[derive(Debug, Clone)]

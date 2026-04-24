@@ -2,7 +2,7 @@ mod compile_expression;
 
 use rand::distr::{Alphanumeric, SampleString};
 use crate::abstract_syntax_tree;
-use compile_expression::compile_expression;
+use compile_expression::{compile_expression, ExpressionResult::*};
 use crate::abstract_syntax_tree::{
     Expression, Function, Program, Statement, Variable,
 };
@@ -129,7 +129,7 @@ fn compile_statement(
     match statement {
         Statement::Declaration(_) => todo!(),
         Statement::Expression(expression) => {
-            compile_expression(expression, output, env);
+            compile_expression(expression, output, env, Value);
             // TODO: depends on type of expression
             // Expression left result on the stack, pop this
             output
@@ -145,7 +145,7 @@ fn compile_statement(
         },
         Statement::While { condition, body } => compile_while_statement(condition, body, current_function, output, env),
         Statement::Return(expression) => {
-            compile_expression(expression, output, env);
+            compile_expression(expression, output, env, Value);
             output.code.append(&mut vec![
                 // Put expression result into RAX register
                 Pop(Register(RAX)),
@@ -168,7 +168,7 @@ fn compile_if_statement(
     env: &mut Environment
 ) {
     // Compile condition
-    compile_expression(condition, output, env);
+    compile_expression(condition, output, env, Value);
     let begin_else_label = format_random_label("begin_else+");
     output.code.append(&mut vec![
         // Put condition result into R14
@@ -220,7 +220,7 @@ fn compile_while_statement(
     ]);
     compile_block(&body, current_function, output, env);
     output.code.push(ILabel(condition_label));
-    compile_expression(condition, output, env);
+    compile_expression(condition, output, env, Value);
     output.code.append(&mut vec![
         // Put condition result into R14
         Pop(Register(R14)),

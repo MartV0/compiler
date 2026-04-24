@@ -8,6 +8,23 @@ pub enum RegValue {
     None
 }
 
+#[rustfmt::skip]
+/// If any of these registers are present in r/m bits, and an indirect
+/// addressing mode is used then an SIB value needs to be encoded
+const SIB_REGISTERS: [Register; 4] = [
+    RSP, ESP,
+    R12, R12D
+];
+
+#[rustfmt::skip]
+/// If any of these registers are present in r/m bits, and indirect 
+/// (no displacement) addressing mode is used then RIP is used as indirect
+/// register instead of these registers
+const RIP_REGISTERS: [Register; 4] = [
+    RBP, EBP,
+    R13, R13D,
+];
+
 /// Add opcode, modrm byte and optionally the rex byte infront
 /// - output: where to output the bytecode
 /// - rm: r/m argument, usually the first operand
@@ -18,9 +35,23 @@ pub fn add_rex_opcode_modrm_offset(
     rm: Operand,
     reg: RegValue,
 ) {
-    let (rm, displacement) = match rm {
-        Operand::IndirectDisplacement(register, immediate_value) => (register, Some(immediate_value)),
-        Operand::Register(register) => (register, None),
+    let (rm, displacement, mod_) = match rm {
+        Operand::IndirectDisplacement(register, immediate_value) => {
+            if SIB_REGISTERS.contains(&register) {
+                panic!("{register:?} register has to be encoded with SIB");
+            }
+            (register, Some(immediate_value), 0b10)
+        },
+        Operand::Indirect(register) => {
+            if SIB_REGISTERS.contains(&register) {
+                panic!("{register:?} register has to be encoded with SIB");
+            }
+            if RIP_REGISTERS.contains(&register) {
+                panic!("{register:?} register encodes RIP offset");
+            }
+            (register, None, 0b00)
+        },
+        Operand::Register(register) => (register, None, 0b11),
         rm => panic!("{rm:?} not supported in modrm field")
     };
 
@@ -51,19 +82,6 @@ pub fn add_rex_opcode_modrm_offset(
     output.code.append(&mut opcode);
 
     // Create modr/m byte
-    // TODO: addressing modes
-    let mod_ = match displacement {
-        // direct
-        None => 0b11,
-        // indirect with offset
-        Some(_) => { 
-            // TODO: check for all registers, also esp etc
-            if rm == RSP || rm == R12 {
-                panic!("SP and R12 register have to be encoded with SIB");
-            }
-            0b10
-        }
-    };
     let reg = reg_bits & 0b111;
     let rm = rm_bits & 0b111;
     let mod_reg_rm = mod_ << 6 | reg << 3 | rm;

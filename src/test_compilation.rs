@@ -33,7 +33,7 @@ fn test_executable(path: &Path) -> Result<Output, std::io::Error> {
 fn random_file_name() -> PathBuf {
     let mut path = "/tmp/test_program".to_string();
     let mut rng = rand::rng();
-    Alphanumeric.append_string(&mut rng, &mut path, 20);
+    Alphanumeric.append_string(&mut rng, &mut path, 30);
     PathBuf::from(path)
 }
 
@@ -47,6 +47,15 @@ mod tests {
         let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "Hello world\n".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_while() {
+        let program = include_str!("../test_programs/StdoutSyscallWhile.poo");
+        let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "hahahahaha".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
     }
 

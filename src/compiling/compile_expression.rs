@@ -1,5 +1,7 @@
+use std::collections::btree_map::OccupiedEntry;
+
 use super::CompilationResult;
-use crate::abstract_syntax_tree as ast;
+use crate::abstract_syntax_tree::{self as ast, Operator};
 use crate::abstract_syntax_tree::Expression;
 use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
@@ -11,12 +13,22 @@ use crate::assembling::assembly::{
 use crate::linking::elf::SegmentType;
 use super::Environment;
 
+// Whether the expression should result in a address or value
+// example with assignment: a = b
+// a should return an adress
+// b should return an value
+#[derive(Debug, PartialEq, Clone)]
+pub enum ExpressionResult {
+    Value,
+    Adress
+}
+
 /// Compile an expression, leaves result of the expression on the stack
-pub fn compile_expression(expression: Expression, output: &mut CompilationResult, env: &mut Environment) {
+pub fn compile_expression(expression: Expression, output: &mut CompilationResult, env: &mut Environment, result: ExpressionResult) {
     match expression {
         Expression::Literal(literal) => compile_literal(literal, output),
-        Expression::Var(var) => compile_variable(var, output, env),
-        Expression::Operator(operator, expression, expression1) => compile_operator(operator, *expression, *expression1, output, env),
+        Expression::Var(var) => compile_variable(var, output, env, result),
+        Expression::Operator(operator, expression, expression1) => compile_operator(operator, *expression, *expression1, output, env, result),
         Expression::FunctionCall(identifier, arguments) => {
             compile_function_call(identifier, arguments, output, env);
         }
@@ -61,7 +73,7 @@ fn compile_function_call(
     env: &mut Environment
 ) {
     for expression in arguments.into_iter() {
-        compile_expression(expression, output, env);
+        compile_expression(expression, output, env, ExpressionResult::Value);
     }
 
     output.code.append(&mut vec![
@@ -69,6 +81,8 @@ fn compile_function_call(
         // Push function result onto the stack
         Push(Register(RAX)),
     ]);
+
+    // TODO: shrink stack to free up arguments again?
 }
 
 /// Compile systemcall expression, leaves 64 bit result from RAX register on the stack
@@ -83,7 +97,7 @@ fn compile_syscall(arguments: Vec<Expression>, output: &mut CompilationResult, e
     }
 
     for expression in arguments.into_iter() {
-        compile_expression(expression, output, env);
+        compile_expression(expression, output, env, ExpressionResult::Value);
     }
 
     let pop_arguments = vec![
@@ -113,10 +127,16 @@ fn compile_operator(
     operand1: Expression,
     operand2: Expression,
     output: &mut CompilationResult,
-    env: &mut Environment
+    env: &mut Environment,
+    result: ExpressionResult
 ) {
-    compile_expression(operand1, output, env);
-    compile_expression(operand2, output, env);
+    if let Operator::Assignment = operator {
+        compile_assignment(operand1, operand2, output, env, result);
+        return;
+    }
+    // TODO: result doorgeven?
+    compile_expression(operand1, output, env, result.clone());
+    compile_expression(operand2, output, env, result);
 
     output.code.append(&mut vec![
         // Pop operand2 into R15
@@ -127,18 +147,52 @@ fn compile_operator(
     
     output.code.push(match operator {
         ast::Operator::Addition => Add(Register(R14), Register(R15)),
+        ast::Operator::Subtraction => Sub(Register(R14), Register(R15)),
         op => todo!("Operator not supported {op:?}")
     });
 
     output.code.push(Push(Register(R14)));
 }
 
+/// Compiles assignment operator
+fn compile_assignment(
+    operand1: Expression,
+    operand2: Expression,
+    output: &mut CompilationResult,
+    env: &mut Environment,
+    result: ExpressionResult
+) {
+    // Compile target address
+    compile_expression(operand1, output, env, ExpressionResult::Adress);
+    // Compile value
+    // TODO: result doorgeven?
+    compile_expression(operand2, output, env, result);
+
+    output.code.append(&mut vec![
+        // Pop value into R15
+        Pop(Register(R15)),
+        // Pop target address into R14
+        Pop(Register(R14)),
+        // Assign value
+        Mov(Indirect(R14), Register(R15)),
+        // Push value onto stack again
+        Push(Register(R15))
+    ]);
+}
+
 /// Compile variable expression
 fn compile_variable(
     identifier: String,
     output: &mut CompilationResult,
-    env: &mut Environment
+    env: &mut Environment,
+    result: ExpressionResult
 ) {
     let offset = env.local.get(identifier.as_str()).expect("Undefined variable");
-    output.code.push(Push(IndirectDisplacement(RBP, *offset)));
+    match result {
+        ExpressionResult::Value => output.code.push(Push(IndirectDisplacement(RBP, *offset))),
+        ExpressionResult::Adress => output.code.append(&mut vec![
+            LEA(Register(R14), IndirectDisplacement(RBP, *offset)),
+            Push(Register(R14))
+        ]),
+    }
 }

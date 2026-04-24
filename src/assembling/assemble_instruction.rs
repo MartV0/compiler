@@ -91,6 +91,16 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
         {
             add_rex_opcode_modrm_offset(output, vec![0x03], Operand::Register(rm), RegValue::Register(reg));
         }
+        Instruction::Sub(Operand::Register(reg), Operand::Register(rm))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x2B], Operand::Register(rm), RegValue::Register(reg));
+        }
+        Instruction::LEA(Operand::Register(reg), rm)
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x8D], rm, RegValue::Register(reg));
+        }
         val => panic!("unsupported instruction: {val:?}"),
     }
 }

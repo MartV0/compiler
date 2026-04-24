@@ -1,6 +1,11 @@
 Int main() {
-    while (1) {
-        syscall!(1, 1, "Hello World!", 12);
-    }
+    test(5);
     return 0;
+}
+
+Void test(Int a) {
+    while (a) {
+        a = a - 1;
+        syscall!(1, 1, "ha", 2);
+    }
 }
