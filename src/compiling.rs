@@ -20,9 +20,9 @@ pub struct CompilationResult {
     pub data: HashMap<crate::assembling::assembly::Label, Vec<u8>>,
 }
 
-struct Environment<'a> {
+struct Environment {
     // Local variables, map from variable name to offset relative to rbp
-    local: HashMap<&'a str, i32>,
+    local: HashMap<String, i32>,
 }
 
 /// name used for main function
@@ -103,15 +103,17 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
     //rbp+24=second to last func arg
     let mut offset: i32 = 16;
     for arg in function.arguments.iter().rev() {
-        env.local.insert(&arg.identifier, offset);
+        env.local.insert(arg.identifier.clone(), offset);
         // TODO: depends on arg size
         offset += 8;
     }
 
+    let env_size = environment_size(&function.body);
     output.code.append(&mut vec![
         ILabel(function.indentifier.clone()),
         Push(Register(RBP)),
         Mov(Register(RBP), Register(RSP)),
+        Sub(Register(RSP), Immediate(Literal(env_size as i64)))
         // TODO: adjust RSP for local variables
     ]);
 
@@ -119,7 +121,7 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
 
     output.code.append(&mut vec![
         ILabel(format_return_label(&function.indentifier)),
-        // TODO: adjust rsp again, to free the local variables
+        Add(Register(RSP), Immediate(Literal(env_size as i64))),
         Leave,
         Ret,
     ]);
@@ -133,7 +135,9 @@ fn compile_statement(
     env: &mut Environment,
 ) {
     match statement {
-        Statement::Declaration(_) => todo!(),
+        Statement::Declaration(variable) => {
+            add_local_variable(variable, env);
+        },
         Statement::Expression(expression) => {
             compile_expression(expression, output, env, Value);
             // TODO: depends on type of expression
@@ -255,4 +259,30 @@ fn compile_block(
     for statement in statements {
         compile_statement(statement.clone(), &current_function, output, env);
     }
+}
+
+fn add_local_variable(Variable{ type_, identifier }: Variable, output: &mut Environment) {
+    // Calculate the new offset to rbp, as the current lowest offset minus variable size
+    // TODO: depends on size of var
+    let new_offset = output.local.iter().map(|x | x.1).min().unwrap_or(&0) - 8;
+    output.local.insert(identifier, new_offset);
+}
+
+// Returns size of local environment in bytes, excluding,
+fn environment_size(statements: &Vec<Statement>) -> u64 {
+    let mut size = 0;
+    for statement in statements {
+        match statement {
+            // TODO: should depend on type size
+            Statement::Declaration(_variable) => size += 8,
+            Statement::Expression(_expression) => {},
+            Statement::If { then_branch, else_branch, .. } => {
+                size += environment_size(then_branch);
+                size += environment_size(else_branch);
+            },
+            Statement::While { body, .. } => size += environment_size(body),
+            Statement::Return(_expression) => {},
+        }
+    }
+    size
 }

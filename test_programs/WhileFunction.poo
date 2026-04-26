@@ -1,0 +1,14 @@
+
+Int main() {
+    Int a;
+    a = 5;
+    while (a > 0) {
+        a = a - 1;
+        test(69905, 139810);
+        syscall!(1, 1, "ha", 2);
+    }
+    return 0;
+}
+
+Int test(Int a, Int b) {
+}
