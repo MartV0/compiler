@@ -5,7 +5,7 @@ use crate::assembling::*;
 pub enum RegValue {
     Register(Register),
     Extension(u8),
-    None
+    None,
 }
 
 #[rustfmt::skip]
@@ -41,7 +41,7 @@ pub fn add_rex_opcode_modrm_offset(
                 panic!("{register:?} register has to be encoded with SIB");
             }
             (register, Some(immediate_value), 0b10)
-        },
+        }
         Operand::Indirect(register) => {
             if SIB_REGISTERS.contains(&register) {
                 panic!("{register:?} register has to be encoded with SIB");
@@ -50,9 +50,9 @@ pub fn add_rex_opcode_modrm_offset(
                 panic!("{register:?} register encodes RIP offset");
             }
             (register, None, 0b00)
-        },
+        }
         Operand::Register(register) => (register, None, 0b11),
-        rm => panic!("{rm:?} not supported in modrm field")
+        rm => panic!("{rm:?} not supported in modrm field"),
     };
 
     // Create 4 bit register codes
@@ -87,7 +87,12 @@ pub fn add_rex_opcode_modrm_offset(
     let mod_reg_rm = mod_ << 6 | reg << 3 | rm;
     output.code.push(mod_reg_rm);
     if let Some(displacement) = displacement {
-        add_offset(output, ImmediateValue::Literal(displacement.into()), 4, LabelType::Absolute);
+        add_offset(
+            output,
+            ImmediateValue::Literal(displacement.into()),
+            4,
+            LabelType::Absolute,
+        );
     }
 }
 
@@ -105,10 +110,12 @@ pub fn add_rex_opcode_modrm64bit(
         x => x,
     };
     let rm = match rm {
-        Operand::IndirectDisplacement(register, a) => Operand::IndirectDisplacement(reg64_to_reg32(register), a),
+        Operand::IndirectDisplacement(register, a) => {
+            Operand::IndirectDisplacement(reg64_to_reg32(register), a)
+        }
         Operand::Register(register) => Operand::Register(reg64_to_reg32(register)),
         Operand::Indirect(register) => Operand::Indirect(reg64_to_reg32(register)),
-        x => x
+        x => x,
     };
 
     add_rex_opcode_modrm_offset(output, opcode, rm, reg);
@@ -209,14 +216,14 @@ fn reg64_to_reg32(reg: Register) -> Register {
         RDI => EDI, 
         RSP => ESP, 
         RBP => EBP, 
-        R8  =>  R8D,
-        R9  =>  R9D,
+        R8  => R8D,
+        R9  => R9D,
         R10 => R10D,
         R11 => R11D,
         R12 => R12D,
         R13 => R13D,
         R14 => R14D,
         R15 => R15D,
-        reg => reg
+        reg => reg,
     }
 }

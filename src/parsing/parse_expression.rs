@@ -3,7 +3,7 @@ use super::*;
 use nom::{
     IResult,
     branch::alt,
-    bytes::complete::{tag, escaped_transform, is_not},
+    bytes::complete::{escaped_transform, is_not, tag},
     character::complete::digit1,
     combinator::{map, value},
     error::ParseError,
@@ -40,15 +40,15 @@ fn string_literal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a st
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("\"")(i)?;
     let (i, string_content) = escaped_transform(
-        is_not("\\\""), 
+        is_not("\\\""),
         '\\',
         alt((
-          value("\\", tag("\\")),
-          value("\"", tag("\"")),
-          value("\n", tag("n")),
-          value("\t", tag("t")),
-          value("\r", tag("r"))
-        ))
+            value("\\", tag("\\")),
+            value("\"", tag("\"")),
+            value("\n", tag("n")),
+            value("\t", tag("t")),
+            value("\r", tag("r")),
+        )),
     )(i)?;
     let (i, _) = tag("\"")(i)?;
     Ok((i, string_content.to_string()))
@@ -67,7 +67,9 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
 }
 
 /// Parses a builtin function call expression
-fn builtin_function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn builtin_function_call<'a, E: ParseError<&'a str> + 'a>(
+    i: &'a str,
+) -> IResult<&'a str, Expression, E> {
     let (i, _) = optional_ws(i)?;
     let (i, ident) = identifier(i)?;
     let (i, _) = tag("!")(i)?;
@@ -76,7 +78,10 @@ fn builtin_function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult
         tuple((optional_ws, tag(","), optional_ws)),
         expression,
     ))(i)?;
-    Ok((i, Expression::BuiltInFunctionCall(ident.to_string(), arguments)))
+    Ok((
+        i,
+        Expression::BuiltInFunctionCall(ident.to_string(), arguments),
+    ))
 }
 
 /// Parse left associatively, based on a given operator and expression parser
@@ -115,17 +120,19 @@ where
 
 enum Associativity {
     Left,
-    Right
+    Right,
 }
 
 /// Fold the exprs into a single one using the operators
-fn fold_ops_exprs(ops: impl Iterator<Item=Operator>, mut exprs: impl Iterator<Item=Expression>, associativity: Associativity) -> Expression {
+fn fold_ops_exprs(
+    ops: impl Iterator<Item = Operator>,
+    mut exprs: impl Iterator<Item = Expression>,
+    associativity: Associativity,
+) -> Expression {
     let expr1 = exprs.next().expect("should be at least one expression");
-    std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| {
-        match associativity {
-            Associativity::Left => Expression::Operator(op, Box::new(expr1), Box::new(expr2)),
-            Associativity::Right => Expression::Operator(op, Box::new(expr2), Box::new(expr1))
-        }
+    std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| match associativity {
+        Associativity::Left => Expression::Operator(op, Box::new(expr1), Box::new(expr2)),
+        Associativity::Right => Expression::Operator(op, Box::new(expr2), Box::new(expr1)),
     })
 }
 
@@ -265,7 +272,6 @@ mod tests {
             ))
         );
     }
-
 
     #[test]
     fn test_parenthesised_test() {

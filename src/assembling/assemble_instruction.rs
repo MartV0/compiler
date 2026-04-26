@@ -24,21 +24,11 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
         Instruction::Ret => output.code.push(0xC3),
         Instruction::Call(Operand::Immediate(immediate)) => {
             output.code.push(0xE8);
-            add_offset(
-                output,
-                immediate,
-                4,
-                LabelType::Relative
-            );
+            add_offset(output, immediate, 4, LabelType::Relative);
         }
         Instruction::Jmp(Operand::Immediate(immediate)) => {
             output.code.push(0xE9);
-            add_offset(
-                output,
-                immediate,
-                4,
-                LabelType::Relative,
-            );
+            add_offset(output, immediate, 4, LabelType::Relative);
         }
         Instruction::Pop(Operand::Register(reg)) if is_64bit_reg(&reg) => {
             add_rex_opcode_modrm_offset(output, vec![0x8F], Operand::Register(reg), RegValue::None);
@@ -75,21 +65,11 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
         }
         Instruction::JE(op) => {
             output.code.append(&mut vec![0x0F, 0x84]);
-            add_offset(
-                output,
-                op,
-                4,
-                LabelType::Relative
-            );
+            add_offset(output, op, 4, LabelType::Relative);
         }
         Instruction::JNE(op) => {
             output.code.append(&mut vec![0x0F, 0x85]);
-            add_offset(
-                output,
-                op,
-                4,
-                LabelType::Relative
-            );
+            add_offset(output, op, 4, LabelType::Relative);
         }
         Instruction::Add(Operand::Register(reg), Operand::Register(rm))
             if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>

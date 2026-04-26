@@ -39,13 +39,11 @@ where
 fn whitespace<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, (), E> {
     let chars = " \t\r\n";
     map(
-        many1(
-            alt((
+        many1(alt((
             take_while1(move |c| chars.contains(c)),
-            parse_comment
-            ))
-        ),
-        | _ | ()
+            parse_comment,
+        ))),
+        |_| (),
     )(i)
 }
 
@@ -59,7 +57,7 @@ fn parse_comment<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
 
 /// Optionally parses whitespace
 fn optional_ws<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, (), E> {
-    map(opt(whitespace), | _ | ())(i)
+    map(opt(whitespace), |_| ())(i)
 }
 
 /// Parses a variable or function indentifier

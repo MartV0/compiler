@@ -18,15 +18,22 @@ use crate::linking::elf::SegmentType;
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExpressionResult {
     Value,
-    Adress
+    Adress,
 }
 
 /// Compile an expression, leaves result of the expression on the stack
-pub fn compile_expression(expression: Expression, output: &mut CompilationResult, env: &mut Environment, result: ExpressionResult) {
+pub fn compile_expression(
+    expression: Expression,
+    output: &mut CompilationResult,
+    env: &mut Environment,
+    result: ExpressionResult,
+) {
     match expression {
         Expression::Literal(literal) => compile_literal(literal, output),
         Expression::Var(var) => compile_variable(var, output, env, result),
-        Expression::Operator(operator, expression, expression1) => compile_operator(operator, *expression, *expression1, output, env, result),
+        Expression::Operator(operator, expression, expression1) => {
+            compile_operator(operator, *expression, *expression1, output, env, result)
+        }
         Expression::FunctionCall(identifier, arguments) => {
             compile_function_call(identifier, arguments, output, env);
         }
@@ -68,7 +75,7 @@ fn compile_function_call(
     identifier: ast::Indentifier,
     arguments: Vec<Expression>,
     output: &mut CompilationResult,
-    env: &mut Environment
+    env: &mut Environment,
 ) {
     for expression in arguments.into_iter() {
         compile_expression(expression, output, env, ExpressionResult::Value);
@@ -84,8 +91,11 @@ fn compile_function_call(
 }
 
 /// Compile systemcall expression, leaves 64 bit result from RAX register on the stack
-fn compile_syscall(arguments: Vec<Expression>, output: &mut CompilationResult, env: &mut Environment) {
-    
+fn compile_syscall(
+    arguments: Vec<Expression>,
+    output: &mut CompilationResult,
+    env: &mut Environment,
+) {
     let len = arguments.len();
     if len < 1 {
         panic!("No syscall number provided")
@@ -126,7 +136,7 @@ fn compile_operator(
     operand2: Expression,
     output: &mut CompilationResult,
     env: &mut Environment,
-    result: ExpressionResult
+    result: ExpressionResult,
 ) {
     let instructions = &mut match operator {
         Operator::Assignment => {
@@ -181,7 +191,7 @@ fn compile_operator(
         // Pop operand1 into R14
         Pop(Register(R14)),
     ]);
-    
+
     output.code.append(instructions);
 
     output.code.push(Push(Register(R14)));
@@ -189,7 +199,7 @@ fn compile_operator(
 
 enum DivisionResult {
     Quotient,
-    Remainder
+    Remainder,
 }
 
 fn compile_division(
@@ -198,17 +208,16 @@ fn compile_division(
     operand2: Expression,
     output: &mut CompilationResult,
     env: &mut Environment,
-    result: ExpressionResult
+    result: ExpressionResult,
 ) {
     // TODO: result doorgeven?
     compile_expression(operand1, output, env, result.clone());
     compile_expression(operand2, output, env, result);
 
-    output.code.append(&mut vec![
-        Pop(Register(R14)),
-        Pop(Register(RAX)),
-    ]);
-    
+    output
+        .code
+        .append(&mut vec![Pop(Register(R14)), Pop(Register(RAX))]);
+
     output.code.append(&mut vec![
         Mov(Register(RDX), Immediate(Literal(0))),
         IDiv(Register(R14)),
@@ -225,7 +234,7 @@ fn compile_assignment(
     operand2: Expression,
     output: &mut CompilationResult,
     env: &mut Environment,
-    result: ExpressionResult
+    result: ExpressionResult,
 ) {
     // Compile target address
     compile_expression(operand1, output, env, ExpressionResult::Adress);
@@ -241,7 +250,7 @@ fn compile_assignment(
         // Assign value
         Mov(Indirect(R14), Register(R15)),
         // Push value onto stack again
-        Push(Register(R15))
+        Push(Register(R15)),
     ]);
 }
 
@@ -258,8 +267,7 @@ fn compile_variable(
             let label = format_variable_label(&identifier);
             if output.data.contains_key(&label) {
                 compile_global_variable(label, output, result);
-            }
-            else {
+            } else {
                 panic!("Variable not found: {identifier}");
             }
         }
@@ -267,11 +275,7 @@ fn compile_variable(
 }
 
 /// compile local variable expression
-fn compile_local_variable(
-    output: &mut CompilationResult,
-    offset: i32,
-    result: ExpressionResult,
-) {
+fn compile_local_variable(output: &mut CompilationResult, offset: i32, result: ExpressionResult) {
     match result {
         ExpressionResult::Value => output.code.push(Push(IndirectDisplacement(RBP, offset))),
         ExpressionResult::Adress => output.code.append(&mut vec![
@@ -289,8 +293,10 @@ fn compile_global_variable(
     match result {
         ExpressionResult::Value => output.code.append(&mut vec![
             Mov(Register(R15), Immediate(Label(label, SegmentType::Data))),
-            Push(Indirect(R15))
+            Push(Indirect(R15)),
         ]),
-        ExpressionResult::Adress => output.code.push(Push(Immediate(Label(label, SegmentType::Data))))
+        ExpressionResult::Adress => output
+            .code
+            .push(Push(Immediate(Label(label, SegmentType::Data)))),
     }
 }

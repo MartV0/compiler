@@ -8,7 +8,6 @@ use crate::linking::relocate;
 /// - Creating a elf binary by hand (first comment contains x86_64): https://www.youtube.com/watch?v=XH6jDiKxod8
 /// - Linux elf man page: https://www.man7.org/linux/man-pages/man5/elf.5.html
 
-
 const EI_NIDENT: usize = 16;
 
 type Elf64_Half = u16;
@@ -71,7 +70,7 @@ struct Elf64_Shdr {
 #[derive(Debug, Clone)]
 pub enum SegmentType {
     Data, // Global data/variables
-    Text // Bytecode
+    Text, // Bytecode
 }
 
 pub fn create_elf(mut input: AssemblingResult) -> Vec<u8> {
@@ -81,25 +80,33 @@ pub fn create_elf(mut input: AssemblingResult) -> Vec<u8> {
     let text_file_offset = (ELF_HEADER_SIZE + PROGRAM_HEADER_SIZE * header_count).into();
     // 0x400000 is default offset for text/code segment
     let code_virtual_address = text_file_offset + 0x400000;
-    let code_len: u64 = input.code.len().try_into().expect("Failed to convert usize to u64");
+    let code_len: u64 = input
+        .code
+        .len()
+        .try_into()
+        .expect("Failed to convert usize to u64");
     let text_program_header = create_program_header(
-        SegmentType::Text, 
+        SegmentType::Text,
         text_file_offset,
         code_virtual_address,
-        code_len
+        code_len,
     );
 
     // Create data header
-    let data_len: u64 = input.data.len().try_into().expect("Failed to convert usize to u64");
+    let data_len: u64 = input
+        .data
+        .len()
+        .try_into()
+        .expect("Failed to convert usize to u64");
     let data_offset = text_file_offset + code_len;
     // Not sure why the + 0x1000 was necessary, but it fixed a segfault so im keeping it hehe
     // Maybe because alignment?
     let data_virtual_address: u64 = code_virtual_address + code_len + 0x1000;
     let data_program_header = create_program_header(
-        SegmentType::Data, 
+        SegmentType::Data,
         data_offset,
-        data_virtual_address, 
-        data_len
+        data_virtual_address,
+        data_len,
     );
 
     // Relocate all references to data in the code to the new virtual address
@@ -120,7 +127,7 @@ fn create_program_header(
     ph_type: SegmentType,
     offset: Elf64_Off,
     virtual_adress: Elf64_Addr,
-    size: Elf64_Xword
+    size: Elf64_Xword,
 ) -> Elf64_Phdr {
     // flags:
     // executable
@@ -149,10 +156,11 @@ fn create_program_header(
         // equal for both the bytecode and the text, but might be different for other types
         p_memsz: size,
         // 4096 alignment seems to be required in x86_64
-        p_align: 0x1000
+        p_align: 0x1000,
     }
 }
 
+#[rustfmt::skip]
 /// Create the global elf header
 fn create_elf_header(num_pheaders: Elf64_Half, entry_point: Elf64_Addr) -> Elf64_Ehdr {
     let magic_number: u8 = 0x7f;

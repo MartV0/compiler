@@ -2,9 +2,9 @@
 // References:
 // - Doesn't contain x86_64 but still great guide/introduction on instruction encoding https://www.c-jump.com/CIS77/CPU/x86/lecture.html#X77_0010_real_encoding
 // - With x86_64 but not great as learning resource, better as quick reference: https://wiki.osdev.org/X86-64_Instruction_Encoding
-pub mod assembly;
-pub mod assemble_instruction_part;
 pub mod assemble_instruction;
+pub mod assemble_instruction_part;
+pub mod assembly;
 
 use std::collections::HashMap;
 
@@ -49,7 +49,7 @@ pub enum LabelType {
     // index where the next instruction is, because the jump value is relative to
     // the next instruction
     Relative,
-    Absolute
+    Absolute,
 }
 
 /// Assembles the code into raw bytecode and data segment, still needs to be converted to elf/linked
@@ -108,13 +108,16 @@ fn fix_code_labels(output: &mut IntermediateAssemblingResult) {
     {
         let bytes = (*bytes).into();
         let offset = *address_index;
-        let label_adress: i64 = (*output.code_labels.get(label).expect("Could not find label")).try_into().unwrap();
+        let label_adress: i64 = (*output.code_labels.get(label)
+            .expect("Could not find label"))
+            .try_into()
+            .unwrap();
 
         let new_address: i64 = match label_type {
             LabelType::Relative => {
                 let next_instruction: i64 = usize::try_into(offset + bytes).unwrap();
                 label_adress - next_instruction
-            },
+            }
             LabelType::Absolute => label_adress,
         };
 

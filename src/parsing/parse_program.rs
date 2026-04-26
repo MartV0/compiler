@@ -10,8 +10,8 @@ use nom::{
     sequence::tuple,
 };
 
-use super::*;
 use super::parse_expression::expression;
+use super::*;
 
 /// Parse the complete program file
 /// Main entry point for the parsing

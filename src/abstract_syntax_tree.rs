@@ -53,7 +53,7 @@ pub enum Operator {
 pub enum Literal {
     Bool(bool),
     Int(i64),
-    String(String)
+    String(String),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -78,5 +78,5 @@ pub enum Type {
     Bool,
     Int,
     Void,
-    String
+    String,
 }

@@ -1,11 +1,7 @@
 mod compile_expression;
 
-use rand::distr::{Alphanumeric, SampleString};
 use crate::abstract_syntax_tree;
-use compile_expression::{compile_expression, ExpressionResult::*};
-use crate::abstract_syntax_tree::{
-    Expression, Function, Program, Statement, Variable,
-};
+use crate::abstract_syntax_tree::{Expression, Function, Program, Statement, Variable};
 use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
     ImmediateValue::*,
@@ -14,6 +10,8 @@ use crate::assembling::assembly::{
     Register::*,
 };
 use crate::linking::elf::SegmentType;
+use compile_expression::{ExpressionResult::*, compile_expression};
+use rand::distr::{Alphanumeric, SampleString};
 use std::collections::HashMap;
 
 /// Struct containing the raw bytecode and data, still needs to be converted to elf/linked
@@ -24,7 +22,7 @@ pub struct CompilationResult {
 
 struct Environment<'a> {
     // Local variables, map from variable name to offset relative to rbp
-    local: HashMap<&'a str, i32>
+    local: HashMap<&'a str, i32>,
 }
 
 /// name used for main function
@@ -89,13 +87,15 @@ fn format_variable_label(identifier: &str) -> String {
 /// Compile a global variable declaration
 fn compile_variable(variable: Variable, output: &mut CompilationResult) {
     // TODO: depends on size of type
-    output.data.insert(format_variable_label(&variable.identifier), [0;8].to_vec());
+    output
+        .data
+        .insert(format_variable_label(&variable.identifier), [0; 8].to_vec());
 }
 
 /// Compile a function definition
 fn compile_function(function: Function, output: &mut CompilationResult) {
     let mut env = Environment {
-        local: HashMap::new()
+        local: HashMap::new(),
     };
     //rbp=previous saved rbp
     //rbp+8=return adress
@@ -130,7 +130,7 @@ fn compile_statement(
     statement: Statement,
     current_function: &Function,
     output: &mut CompilationResult,
-    env: &mut Environment
+    env: &mut Environment,
 ) {
     match statement {
         Statement::Declaration(_) => todo!(),
@@ -147,9 +147,18 @@ fn compile_statement(
             then_branch,
             else_branch,
         } => {
-            compile_if_statement(condition, then_branch, else_branch, current_function, output, env);
-        },
-        Statement::While { condition, body } => compile_while_statement(condition, body, current_function, output, env),
+            compile_if_statement(
+                condition,
+                then_branch,
+                else_branch,
+                current_function,
+                output,
+                env,
+            );
+        }
+        Statement::While { condition, body } => {
+            compile_while_statement(condition, body, current_function, output, env)
+        }
         Statement::Return(expression) => {
             compile_expression(expression, output, env, Value);
             output.code.append(&mut vec![
@@ -171,7 +180,7 @@ fn compile_if_statement(
     else_branch: Vec<Statement>,
     current_function: &Function,
     output: &mut CompilationResult,
-    env: &mut Environment
+    env: &mut Environment,
 ) {
     // Compile condition
     compile_expression(condition, output, env, Value);
@@ -212,7 +221,7 @@ fn compile_while_statement(
     body: Vec<Statement>,
     current_function: &Function,
     output: &mut CompilationResult,
-    env: &mut Environment
+    env: &mut Environment,
 ) {
     let body_label = format_random_label("while_body+");
     let condition_label = format_random_label("while_condition+");
@@ -233,10 +242,7 @@ fn compile_while_statement(
         // Cmp to zero
         Cmp(Register(R14), Immediate(Literal(0))),
         // Jump to body if condition is not zero
-        JNE(ImmediateValue::Label(
-            body_label,
-            SegmentType::Text,
-        )),
+        JNE(ImmediateValue::Label(body_label, SegmentType::Text)),
     ]);
 }
 
@@ -244,9 +250,8 @@ fn compile_block(
     statements: &Vec<Statement>,
     current_function: &Function,
     output: &mut CompilationResult,
-    env: &mut Environment
-)
-{
+    env: &mut Environment,
+) {
     for statement in statements {
         compile_statement(statement.clone(), &current_function, output, env);
     }
