@@ -1,11 +1,9 @@
+Int a;
 Int main() {
-    test(5);
-    return 0;
-}
-
-Void test(Int a) {
+    a = 5;
     while (a) {
         a = a - 1;
         syscall!(1, 1, "ha", 2);
     }
+    return 0;
 }

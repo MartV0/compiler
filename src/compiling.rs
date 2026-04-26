@@ -59,12 +59,12 @@ fn compile_program(program: Program, output: &mut CompilationResult) {
         Syscall,
     ]);
 
-    for function in functions {
-        compile_function(function, output);
-    }
-
     for variable in variables {
         compile_variable(variable, output);
+    }
+
+    for function in functions {
+        compile_function(function, output);
     }
 }
 
@@ -81,9 +81,15 @@ fn format_random_label(str: &str) -> String {
     label
 }
 
+/// Create label for variable section
+fn format_variable_label(identifier: &str) -> String {
+    format!("globalvar:{identifier}")
+}
+
 /// Compile a global variable declaration
-fn compile_variable(_variable: Variable, _output: &mut CompilationResult) {
-    todo!()
+fn compile_variable(variable: Variable, output: &mut CompilationResult) {
+    // TODO: depends on size of type
+    output.data.insert(format_variable_label(&variable.identifier), [0;8].to_vec());
 }
 
 /// Compile a function definition

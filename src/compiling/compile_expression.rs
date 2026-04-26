@@ -1,14 +1,15 @@
 use super::CompilationResult;
-use crate::abstract_syntax_tree::{self as ast, Operator};
+use super::Environment;
 use crate::abstract_syntax_tree::Expression;
+use crate::abstract_syntax_tree::{self as ast, Operator};
 use crate::assembling::assembly::{
     ImmediateValue::*,
     Instruction::{self, *},
     Operand::*,
     Register::*,
 };
+use crate::compiling::format_variable_label;
 use crate::linking::elf::SegmentType;
-use super::Environment;
 
 // Whether the expression should result in a address or value
 // example with assignment: a = b
@@ -249,14 +250,47 @@ fn compile_variable(
     identifier: String,
     output: &mut CompilationResult,
     env: &mut Environment,
-    result: ExpressionResult
+    result: ExpressionResult,
 ) {
-    let offset = env.local.get(identifier.as_str()).expect("Undefined variable");
+    match env.local.get(identifier.as_str()) {
+        Some(offset) => compile_local_variable(output, *offset, result),
+        None => {
+            let label = format_variable_label(&identifier);
+            if output.data.contains_key(&label) {
+                compile_global_variable(label, output, result);
+            }
+            else {
+                panic!("Variable not found: {identifier}");
+            }
+        }
+    }
+}
+
+/// compile local variable expression
+fn compile_local_variable(
+    output: &mut CompilationResult,
+    offset: i32,
+    result: ExpressionResult,
+) {
     match result {
-        ExpressionResult::Value => output.code.push(Push(IndirectDisplacement(RBP, *offset))),
+        ExpressionResult::Value => output.code.push(Push(IndirectDisplacement(RBP, offset))),
         ExpressionResult::Adress => output.code.append(&mut vec![
-            LEA(Register(R14), IndirectDisplacement(RBP, *offset)),
-            Push(Register(R14))
+            LEA(Register(R14), IndirectDisplacement(RBP, offset)),
+            Push(Register(R14)),
         ]),
+    }
+}
+
+fn compile_global_variable(
+    label: String,
+    output: &mut CompilationResult,
+    result: ExpressionResult,
+) {
+    match result {
+        ExpressionResult::Value => output.code.append(&mut vec![
+            Mov(Register(R15), Immediate(Label(label, SegmentType::Data))),
+            Push(Indirect(R15))
+        ]),
+        ExpressionResult::Adress => output.code.push(Push(Immediate(Label(label, SegmentType::Data))))
     }
 }
