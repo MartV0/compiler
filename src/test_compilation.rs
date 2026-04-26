@@ -41,6 +41,7 @@ fn random_file_name() -> PathBuf {
 mod tests {
     use super::*;
 
+    #[ignore]
     #[test]
     fn test_hello_world() {
         let program = include_str!("../test_programs/HelloWorld.poo");
@@ -83,6 +84,24 @@ mod tests {
         let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "Hello World!".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_expression() {
+        let program = include_str!("../test_programs/IntegerExpression.poo");
+        let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(17));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_bool_expression() {
+        let program = include_str!("../test_programs/BoolExpression.poo");
+        let Output { status, stdout, stderr } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(15));
+        assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }
 }

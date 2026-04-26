@@ -209,9 +209,9 @@ fn bin_operator2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
 fn bin_operator3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Operator, E> {
     alt((
         value(Operator::LessEq, tag("<=")),
+        value(Operator::GreaterEquals, tag(">=")),
         value(Operator::Less, tag("<")),
         value(Operator::Greater, tag(">")),
-        value(Operator::GreaterEquals, tag(">=")),
     ))(i)
 }
 
@@ -240,6 +240,32 @@ fn bin_operator6<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
 mod tests {
     use super::*;
     use nom::error::Error;
+
+    #[test]
+    fn test_comparison() {
+        let test_string = "a > b && c >= d";
+        let res: Result<_, Err<Error<_>>> = expression(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                Expression::Operator(
+                    Operator::And,
+                    Box::new(Expression::Operator(
+                        Operator::Greater,
+                        Box::new(Expression::Var("a".to_string())),
+                        Box::new(Expression::Var("b".to_string())),
+                    )),
+                    Box::new(Expression::Operator(
+                        Operator::GreaterEquals,
+                        Box::new(Expression::Var("c".to_string())),
+                        Box::new(Expression::Var("d".to_string())),
+                    )),
+                )
+            ))
+        );
+    }
+
 
     #[test]
     fn test_parenthesised_test() {

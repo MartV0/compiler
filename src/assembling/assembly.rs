@@ -19,8 +19,21 @@ pub enum Instruction {
     Sub(Operand, Operand),
     Cmp(Operand, Operand),
     Add(Operand, Operand),
+    /// Signed multiplication
+    IMul(Operand, Operand),
+    // Bitwise and
+    And(Operand, Operand),
+    // Bitwise or
+    Or(Operand, Operand),
+    /// Conditionals set bytes
+    SetLE(Operand),
+    SetL(Operand),
+    SetGE(Operand),
+    SetG(Operand),
+    SetE(Operand),
+    SetNE(Operand),
     /// Computes the effective address of the second operand (the source operand) and stores it in the first operand (destination operand)
-    LEA(Operand, Operand)
+    LEA(Operand, Operand),
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +96,16 @@ pub fn is_32bit_reg(reg: &Register) -> bool {
     match reg {
         EAX  | EBX  | ECX  | EDX  | ESI | EDI | ESP | EBP | R8D | R9D | R10D |
         R11D | R12D | R13D | R14D | R15D => true,
+        _ => false,
+    }
+}
+
+/// Check if reg is a 8 bit register
+#[rustfmt::skip]
+pub fn is_8bit_reg(reg: &Register) -> bool {
+    match reg {
+        AH  | AL  | BH  | BL   | CH   | CL   | DH   | DL   | SIL | DIL | SPL |
+        BPL | R8B | R9B | R10B | R11B | R12B | R13B | R14B | R15B => true,
         _ => false,
     }
 }

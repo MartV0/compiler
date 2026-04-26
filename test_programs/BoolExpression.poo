@@ -1,0 +1,28 @@
+Int main() {
+    return boolfunc(0);
+}
+
+Int boolfunc(Int x) {
+    if (True && True) {
+        x = x + 1;
+    } else {}
+    if (False && True) {
+        x = x - 1;
+    } else {}
+    if (False || False) {
+        x = x - 1;
+    } else {}
+    if (True || False) {
+        x = x + 2;
+    } else {}
+    if (5 < 6 && 5<=6 && 6<=6) {
+        x = x + 3;
+    } else {}
+    if (6 > 5 && 6>=5 && 6>=6) {
+        x = x + 4;
+    } else {}
+    if (10 == 10 && 9 != 10) {
+        x = x + 5;
+    } else {}
+    return x;
+}

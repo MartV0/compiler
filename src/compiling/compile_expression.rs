@@ -130,10 +130,43 @@ fn compile_operator(
     env: &mut Environment,
     result: ExpressionResult
 ) {
-    if let Operator::Assignment = operator {
-        compile_assignment(operand1, operand2, output, env, result);
-        return;
-    }
+    let instructions = &mut match operator {
+        Operator::Assignment => {
+            compile_assignment(operand1, operand2, output, env, result);
+            return;
+        }
+        Operator::Division => todo!(),
+        Operator::Modulo => todo!(),
+        Operator::Addition => vec![Add(Register(R14), Register(R15))],
+        Operator::Subtraction => vec![Sub(Register(R14), Register(R15))],
+        Operator::Multiplication => vec![IMul(Register(R14), Register(R15))],
+        Operator::And => vec![And(Register(R14), Register(R15))],
+        Operator::Or => vec![Or(Register(R14), Register(R15))],
+        Operator::LessEq => vec![
+            Cmp(Register(R14), Register(R15)),
+            SetLE(Register(R14B))
+        ],
+        Operator::Less => vec![
+            Cmp(Register(R14), Register(R15)),
+            SetL(Register(R14B))
+        ],
+        Operator::GreaterEquals => vec![
+            Cmp(Register(R14), Register(R15)),
+            SetGE(Register(R14B))
+        ],
+        Operator::Greater => vec![
+            Cmp(Register(R14), Register(R15)),
+            SetG(Register(R14B))
+        ],
+        Operator::Equals => vec![
+            Cmp(Register(R14), Register(R15)),
+            SetE(Register(R14B))
+        ],
+        Operator::NotEqual => vec![
+            Cmp(Register(R14), Register(R15)),
+            SetNE(Register(R14B))
+        ],
+    };
     // TODO: result doorgeven?
     compile_expression(operand1, output, env, result.clone());
     compile_expression(operand2, output, env, result);
@@ -145,11 +178,7 @@ fn compile_operator(
         Pop(Register(R14)),
     ]);
     
-    output.code.push(match operator {
-        ast::Operator::Addition => Add(Register(R14), Register(R15)),
-        ast::Operator::Subtraction => Sub(Register(R14), Register(R15)),
-        op => todo!("Operator not supported {op:?}")
-    });
+    output.code.append(instructions);
 
     output.code.push(Push(Register(R14)));
 }

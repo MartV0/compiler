@@ -68,6 +68,11 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
             add_rex_opcode_modrm_offset(output, vec![0x81], Operand::Register(reg), RegValue::Extension(7));
             add_immediate(output, val, 4);
         }
+        Instruction::Cmp(Operand::Register(rm), Operand::Register(reg))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x39], Operand::Register(rm), RegValue::Register(reg));
+        }
         Instruction::JE(op) => {
             output.code.append(&mut vec![0x0F, 0x84]);
             add_offset(
@@ -95,6 +100,51 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
             if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
         {
             add_rex_opcode_modrm_offset(output, vec![0x2B], Operand::Register(rm), RegValue::Register(reg));
+        }
+        Instruction::IMul(Operand::Register(reg), Operand::Register(rm))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0xAF], Operand::Register(rm), RegValue::Register(reg));
+        }
+        Instruction::And(Operand::Register(rm), Operand::Register(reg))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x21], Operand::Register(rm), RegValue::Register(reg));
+        }
+        Instruction::Or(Operand::Register(rm), Operand::Register(reg))
+            if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x09], Operand::Register(rm), RegValue::Register(reg));
+        }
+        Instruction::SetL(Operand::Register(rm))
+            if is_8bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0x9C], Operand::Register(rm), RegValue::None);
+        }
+        Instruction::SetLE(Operand::Register(rm))
+            if is_8bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0x9E], Operand::Register(rm), RegValue::None);
+        }
+        Instruction::SetE(Operand::Register(rm))
+            if is_8bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0x94], Operand::Register(rm), RegValue::None);
+        }
+        Instruction::SetG(Operand::Register(rm))
+            if is_8bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0x9F], Operand::Register(rm), RegValue::None);
+        }
+        Instruction::SetGE(Operand::Register(rm))
+            if is_8bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0x9D], Operand::Register(rm), RegValue::None);
+        }
+        Instruction::SetNE(Operand::Register(rm))
+            if is_8bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x0F, 0x95], Operand::Register(rm), RegValue::None);
         }
         Instruction::LEA(Operand::Register(reg), rm)
             if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
