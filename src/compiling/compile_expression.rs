@@ -1,9 +1,6 @@
-use std::collections::btree_map::OccupiedEntry;
-
 use super::CompilationResult;
 use crate::abstract_syntax_tree::{self as ast, Operator};
 use crate::abstract_syntax_tree::Expression;
-use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
     ImmediateValue::*,
     Instruction::{self, *},
@@ -135,8 +132,14 @@ fn compile_operator(
             compile_assignment(operand1, operand2, output, env, result);
             return;
         }
-        Operator::Division => todo!(),
-        Operator::Modulo => todo!(),
+        Operator::Division => {
+            compile_division(DivisionResult::Quotient, operand1, operand2, output, env, result);
+            return;
+        },
+        Operator::Modulo => {
+            compile_division(DivisionResult::Remainder, operand1, operand2, output, env, result);
+            return;
+        },
         Operator::Addition => vec![Add(Register(R14), Register(R15))],
         Operator::Subtraction => vec![Sub(Register(R14), Register(R15))],
         Operator::Multiplication => vec![IMul(Register(R14), Register(R15))],
@@ -181,6 +184,38 @@ fn compile_operator(
     output.code.append(instructions);
 
     output.code.push(Push(Register(R14)));
+}
+
+enum DivisionResult {
+    Quotient,
+    Remainder
+}
+
+fn compile_division(
+    div_result: DivisionResult,
+    operand1: Expression,
+    operand2: Expression,
+    output: &mut CompilationResult,
+    env: &mut Environment,
+    result: ExpressionResult
+) {
+    // TODO: result doorgeven?
+    compile_expression(operand1, output, env, result.clone());
+    compile_expression(operand2, output, env, result);
+
+    output.code.append(&mut vec![
+        Pop(Register(R14)),
+        Pop(Register(RAX)),
+    ]);
+    
+    output.code.append(&mut vec![
+        Mov(Register(RDX), Immediate(Literal(0))),
+        IDiv(Register(R14)),
+        Push(Register(match div_result {
+            DivisionResult::Quotient => RAX,
+            DivisionResult::Remainder => RDX,
+        })),
+    ]);
 }
 
 /// Compiles assignment operator

@@ -106,6 +106,11 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
         {
             add_rex_opcode_modrm_offset(output, vec![0x0F, 0xAF], Operand::Register(rm), RegValue::Register(reg));
         }
+        Instruction::IDiv(Operand::Register(rm))
+            if is_32bit_reg(&rm) | is_64bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0xF7], Operand::Register(rm), RegValue::Extension(0x7));
+        }
         Instruction::And(Operand::Register(rm), Operand::Register(reg))
             if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
         {

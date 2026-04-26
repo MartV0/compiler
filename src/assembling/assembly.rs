@@ -21,6 +21,8 @@ pub enum Instruction {
     Add(Operand, Operand),
     /// Signed multiplication
     IMul(Operand, Operand),
+    /// Signed division: EDX:EAX / operand
+    IDiv(Operand),
     // Bitwise and
     And(Operand, Operand),
     // Bitwise or

@@ -90,11 +90,11 @@ fn block<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Vec<St
 /// Parses a statement
 fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Statement, E> {
     alt((
+        return_stmt,
         map(declaration, Statement::Declaration),
         map(expression_stmt, Statement::Expression),
         if_stmt,
         while_stmt,
-        return_stmt,
     ))(i)
 }
 
