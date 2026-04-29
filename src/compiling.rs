@@ -261,11 +261,11 @@ fn compile_block(
     }
 }
 
-fn add_local_variable(Variable{ type_, identifier }: Variable, output: &mut Environment) {
+fn add_local_variable(Variable{ type_, identifier }: Variable, env: &mut Environment) {
     // Calculate the new offset to rbp, as the current lowest offset minus variable size
     // TODO: depends on size of var
-    let new_offset = output.local.iter().map(|x | x.1).min().unwrap_or(&0) - 8;
-    output.local.insert(identifier, new_offset);
+    let new_offset = env.local.iter().map(|x | x.1).filter(| x | **x < 0).min().unwrap_or(&0) - 8;
+    env.local.insert(identifier, new_offset);
 }
 
 // Returns size of local environment in bytes, excluding,

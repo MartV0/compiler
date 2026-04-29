@@ -131,6 +131,7 @@ mod tests {
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }
+    
     #[test]
     fn test_divexpression() {
         let program = include_str!("../test_programs/DivExpression.poo");
@@ -140,6 +141,19 @@ mod tests {
             stderr,
         } = test_full_compiler(program).expect("failed to execute program");
         assert_eq!(status.code(), Some(44));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_binsearch() {
+        let program = include_str!("../test_programs/BinSearch.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(16));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }

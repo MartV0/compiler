@@ -1,0 +1,17 @@
+Int sqrt_(Int min, Int max, Int x) {
+    Int m;
+    m=0-1;
+    while (m*m != x) {
+        m = (min + max)/2;
+        if (m*m <= x) {
+            min = m;
+        } else {
+            max = m;
+        }
+    }
+    return m;
+}
+
+Int main() {
+    return sqrt_(0, 1000, 256);
+}
