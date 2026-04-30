@@ -1,6 +1,5 @@
 mod compile_expression;
 
-use crate::abstract_syntax_tree;
 use crate::abstract_syntax_tree::{Expression, Function, Program, Statement, Variable};
 use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
@@ -114,7 +113,6 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
         Push(Register(RBP)),
         Mov(Register(RBP), Register(RSP)),
         Sub(Register(RSP), Immediate(Literal(env_size as i64)))
-        // TODO: adjust RSP for local variables
     ]);
 
     compile_block(&function.body, &function, output, &mut env);

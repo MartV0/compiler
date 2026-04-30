@@ -1,2 +1,2 @@
-Void print(String str) {
+Void print(&Char str) {
 }

@@ -249,12 +249,12 @@ mod tests {
                         }),
                         Statement::If {
                             condition: Expression::Var("arg2".to_string()),
-                            then_branch: vec![Statement::Expression(Expression::Operator(
+                            then_branch: vec![Statement::Expression(Expression::BinaryOp(
                                 Operator::Assignment,
                                 Box::new(Expression::Var("var2".to_string())),
                                 Box::new(Expression::Literal(Literal::Int(2))),
                             ))],
-                            else_branch: vec![Statement::Expression(Expression::Operator(
+                            else_branch: vec![Statement::Expression(Expression::BinaryOp(
                                 Operator::Assignment,
                                 Box::new(Expression::Var("var2".to_string())),
                                 Box::new(Expression::Literal(Literal::Int(3))),
@@ -262,7 +262,7 @@ mod tests {
                         },
                         Statement::While {
                             condition: Expression::Var("arg2".to_string()),
-                            body: vec![Statement::Expression(Expression::Operator(
+                            body: vec![Statement::Expression(Expression::BinaryOp(
                                 Operator::Assignment,
                                 Box::new(Expression::Var("arg2".to_string())),
                                 Box::new(Expression::Literal(Literal::Bool(false))),
@@ -291,12 +291,12 @@ mod tests {
                 "",
                 Statement::If {
                     condition: Expression::Var("arg2".to_string()),
-                    then_branch: vec![Statement::Expression(Expression::Operator(
+                    then_branch: vec![Statement::Expression(Expression::BinaryOp(
                         Operator::Assignment,
                         Box::new(Expression::Var("var2".to_string())),
                         Box::new(Expression::Literal(Literal::Int(2))),
                     ))],
-                    else_branch: vec![Statement::Expression(Expression::Operator(
+                    else_branch: vec![Statement::Expression(Expression::BinaryOp(
                         Operator::Assignment,
                         Box::new(Expression::Var("var2".to_string())),
                         Box::new(Expression::Literal(Literal::Int(3))),
@@ -314,7 +314,7 @@ mod tests {
             res,
             Ok((
                 "",
-                vec![Statement::Expression(Expression::Operator(
+                vec![Statement::Expression(Expression::BinaryOp(
                     Operator::Assignment,
                     Box::new(Expression::Var("var2".to_string())),
                     Box::new(Expression::Literal(Literal::Int(2))),
@@ -331,7 +331,7 @@ mod tests {
             res,
             Ok((
                 " ",
-                Statement::Expression(Expression::Operator(
+                Statement::Expression(Expression::BinaryOp(
                     Operator::Assignment,
                     Box::new(Expression::Var("var2".to_string())),
                     Box::new(Expression::Literal(Literal::Int(2))),

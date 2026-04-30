@@ -8,6 +8,7 @@ use nom::{
     combinator::{all_consuming, map, opt, peek, value},
     error::ParseError,
     multi::many1,
+    sequence::tuple,
 };
 
 mod parse_expression;
@@ -72,10 +73,11 @@ fn identifier<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &
 /// Parses one of the supported types
 fn type_<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Type, E> {
     alt((
+        map(tuple((tag("&"), type_)), |(_, type_)| Type::Pointer(Box::new(type_))),
         value(Type::Bool, tag("Bool")),
         value(Type::Int, tag("Int")),
         value(Type::Void, tag("Void")),
-        value(Type::String, tag("String")),
+        value(Type::Char, tag("Char")),
     ))(i)
 }
 
@@ -180,12 +182,12 @@ mod tests {
                         }),
                         Statement::If {
                             condition: Expression::Var("arg2".to_string()),
-                            then_branch: vec![Statement::Expression(Expression::Operator(
+                            then_branch: vec![Statement::Expression(Expression::BinaryOp(
                                 Operator::Assignment,
                                 Box::new(Expression::Var("var2".to_string())),
                                 Box::new(Expression::Literal(Literal::Int(2))),
                             ))],
-                            else_branch: vec![Statement::Expression(Expression::Operator(
+                            else_branch: vec![Statement::Expression(Expression::BinaryOp(
                                 Operator::Assignment,
                                 Box::new(Expression::Var("var2".to_string())),
                                 Box::new(Expression::Literal(Literal::Int(3))),
@@ -193,7 +195,7 @@ mod tests {
                         },
                         Statement::While {
                             condition: Expression::Var("arg2".to_string()),
-                            body: vec![Statement::Expression(Expression::Operator(
+                            body: vec![Statement::Expression(Expression::BinaryOp(
                                 Operator::Assignment,
                                 Box::new(Expression::Var("arg2".to_string())),
                                 Box::new(Expression::Literal(Literal::Bool(false))),
@@ -214,6 +216,16 @@ mod tests {
                     identifier: "var1".to_string()
                 }],
             })
+        );
+    }
+
+    #[test]
+    fn test_pointer_type() {
+        let test_string = r#"&&Int"#;
+        let res: Result<_, Err<Error<_>>> = type_(&test_string);
+        assert_eq!(
+            res,
+            Ok(("", Type::Pointer(Box::new(Type::Pointer(Box::new(Type::Int))))))
         );
     }
 }

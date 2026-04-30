@@ -33,6 +33,7 @@ fn compile(program: &str, out_file_path: &Path) {
 }
 
 fn print_vecu8(input: &Vec<u8>) {
+    println!("BYTECODE:");
     for val in input {
         print!("{val:#04x} ");
     }
@@ -48,4 +49,5 @@ fn print_compiled(program: &compiling::CompilationResult) {
     for data in program.data.iter() {
         println!("{data:?}");
     }
+    println!("");
 }

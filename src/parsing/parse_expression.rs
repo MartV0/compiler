@@ -14,7 +14,7 @@ use nom::{
 /// Parses an expression
 /// Entry point for parsing expression
 pub fn expression<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    expression6(i)
+    expression7(i)
 }
 
 /// Parses simple expression, containing single value, or in parenthesis
@@ -118,6 +118,19 @@ where
     }
 }
 
+fn unary_expression<'a, E: ParseError<&'a str> + 'a, Fe, Fo>(
+    operator: Fo,
+    expression: Fe,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Expression, E>
+where
+    Fo: FnMut(&'a str) -> IResult<&'a str, UnaryOperator, E> + 'a + Copy,
+    Fe: FnMut(&'a str) -> IResult<&'a str, Expression, E> + 'a + Copy,
+{
+    map(tuple((operator, expression)), |(op, expr)| {
+        Expression::UnaryOp(op, Box::new(expr))
+    })
+}
+
 enum Associativity {
     Left,
     Right,
@@ -131,8 +144,8 @@ fn fold_ops_exprs(
 ) -> Expression {
     let expr1 = exprs.next().expect("should be at least one expression");
     std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| match associativity {
-        Associativity::Left => Expression::Operator(op, Box::new(expr1), Box::new(expr2)),
-        Associativity::Right => Expression::Operator(op, Box::new(expr2), Box::new(expr1)),
+        Associativity::Left => Expression::BinaryOp(op, Box::new(expr1), Box::new(expr2)),
+        Associativity::Right => Expression::BinaryOp(op, Box::new(expr2), Box::new(expr1)),
     })
 }
 
@@ -161,38 +174,58 @@ where
 
 /// Parse operators with highest associativity first
 /// Right associative because this level only contains assign operator
+fn expression7<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    right_associative(bin_operator6, expression6)(i)
+}
+
+/// Parse operators with associativity 6
+/// Left associative: && ||
 fn expression6<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    right_associative(bin_operator6, expression5)(i)
+    left_associative(bin_operator5, expression5)(i)
 }
 
 /// Parse operators with associativity 5
-/// Left associative: && ||
+/// Left associative: == !=
 fn expression5<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    left_associative(bin_operator5, expression4)(i)
+    left_associative(bin_operator4, expression4)(i)
 }
 
 /// Parse operators with associativity 4
-/// Left associative: == !=
+/// Left associative: <= < > >=
 fn expression4<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    left_associative(bin_operator4, expression3)(i)
+    left_associative(bin_operator3, expression3)(i)
 }
 
 /// Parse operators with associativity 3
-/// Left associative: <= < > >=
+/// Left associative: + -
 fn expression3<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    left_associative(bin_operator3, expression2)(i)
+    left_associative(bin_operator2, expression2)(i)
 }
 
 /// Parse operators with associativity 2
-/// Left associative: + -
+/// Left associative: / * %
 fn expression2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    left_associative(bin_operator2, expression1)(i)
+    left_associative(bin_operator1, expression1)(i)
 }
 
 /// Parse operators with associativity 1
-/// Left associative: / * %
+/// all unary expressions: & * !
 fn expression1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
-    left_associative(bin_operator1, expression_simple)(i)
+    alt((
+        unary_expression(unary_operator, expression_simple),
+        expression_simple
+    ))(i)
+}
+
+/// Parse unary operators
+fn unary_operator<'a, E: ParseError<&'a str> + 'a>(
+    i: &'a str,
+) -> IResult<&'a str, UnaryOperator, E> {
+    alt((
+        value(UnaryOperator::Dereference, tag("*")),
+        value(UnaryOperator::AddressOf, tag("&")),
+        value(UnaryOperator::Negation, tag("!")),
+    ))(i)
 }
 
 /// Parse operators with lowest associativity
@@ -250,23 +283,29 @@ mod tests {
 
     #[test]
     fn test_comparison() {
-        let test_string = "a > b && c >= d";
+        let test_string = "a > b && &c >= &d";
         let res: Result<_, Err<Error<_>>> = expression(&test_string);
         assert_eq!(
             res,
             Ok((
                 "",
-                Expression::Operator(
+                Expression::BinaryOp(
                     Operator::And,
-                    Box::new(Expression::Operator(
+                    Box::new(Expression::BinaryOp(
                         Operator::Greater,
                         Box::new(Expression::Var("a".to_string())),
                         Box::new(Expression::Var("b".to_string())),
                     )),
-                    Box::new(Expression::Operator(
+                    Box::new(Expression::BinaryOp(
                         Operator::GreaterEquals,
-                        Box::new(Expression::Var("c".to_string())),
-                        Box::new(Expression::Var("d".to_string())),
+                        Box::new(Expression::UnaryOp(
+                            UnaryOperator::AddressOf,
+                            Box::new(Expression::Var("c".to_string()))
+                        )),
+                        Box::new(Expression::UnaryOp(
+                            UnaryOperator::AddressOf,
+                            Box::new(Expression::Var("d".to_string()))
+                        )),
                     )),
                 )
             ))
@@ -281,14 +320,14 @@ mod tests {
             res,
             Ok((
                 "",
-                Expression::Operator(
+                Expression::BinaryOp(
                     Operator::Multiplication,
-                    Box::new(Expression::Operator(
+                    Box::new(Expression::BinaryOp(
                         Operator::Addition,
                         Box::new(Expression::Var("a".to_string())),
                         Box::new(Expression::Var("b".to_string())),
                     )),
-                    Box::new(Expression::Operator(
+                    Box::new(Expression::BinaryOp(
                         Operator::Addition,
                         Box::new(Expression::Var("c".to_string())),
                         Box::new(Expression::Var("d".to_string())),
@@ -319,7 +358,7 @@ mod tests {
             res,
             Ok((
                 "",
-                Expression::Operator(
+                Expression::BinaryOp(
                     Operator::Addition,
                     Box::new(Expression::Literal(Literal::Int(1))),
                     Box::new(Expression::Literal(Literal::Int(2)))
@@ -336,9 +375,9 @@ mod tests {
             res,
             Ok((
                 "",
-                Expression::Operator(
+                Expression::BinaryOp(
                     Operator::Addition,
-                    Box::new(Expression::Operator(
+                    Box::new(Expression::BinaryOp(
                         Operator::Addition,
                         Box::new(Expression::Literal(Literal::Int(1))),
                         Box::new(Expression::Literal(Literal::Int(2)))
@@ -351,25 +390,31 @@ mod tests {
 
     #[test]
     fn test_expression_associativity2() {
-        let test_string = "var=1*2*3+4+5";
+        let test_string = "var=*a**b*3+4+5";
         let res: IResult<_, _, Error<_>> = expression(&test_string);
         assert_eq!(
             res,
             Ok((
                 "",
-                Expression::Operator(
+                Expression::BinaryOp(
                     Operator::Assignment,
                     Box::new(Expression::Var("var".to_string())),
-                    Box::new(Expression::Operator(
+                    Box::new(Expression::BinaryOp(
                         Operator::Addition,
-                        Box::new(Expression::Operator(
+                        Box::new(Expression::BinaryOp(
                             Operator::Addition,
-                            Box::new(Expression::Operator(
+                            Box::new(Expression::BinaryOp(
                                 Operator::Multiplication,
-                                Box::new(Expression::Operator(
+                                Box::new(Expression::BinaryOp(
                                     Operator::Multiplication,
-                                    Box::new(Expression::Literal(Literal::Int(1))),
-                                    Box::new(Expression::Literal(Literal::Int(2)))
+                                    Box::new(Expression::UnaryOp(
+                                        UnaryOperator::Dereference,
+                                        Box::new(Expression::Var("a".to_string()))
+                                    )),
+                                    Box::new(Expression::UnaryOp(
+                                        UnaryOperator::Dereference,
+                                        Box::new(Expression::Var("b".to_string()))
+                                    ))
                                 )),
                                 Box::new(Expression::Literal(Literal::Int(3)))
                             )),

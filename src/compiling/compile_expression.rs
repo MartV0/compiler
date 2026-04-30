@@ -4,7 +4,7 @@ use crate::abstract_syntax_tree::Expression;
 use crate::abstract_syntax_tree::{self as ast, Operator};
 use crate::assembling::assembly::{
     ImmediateValue::*,
-    Instruction::{self, *},
+    Instruction::*,
     Operand::*,
     Register::*,
 };
@@ -31,16 +31,17 @@ pub fn compile_expression(
     match expression {
         Expression::Literal(literal) => compile_literal(literal, output),
         Expression::Var(var) => compile_variable(var, output, env, result),
-        Expression::Operator(operator, expression, expression1) => {
-            compile_operator(operator, *expression, *expression1, output, env, result)
-        }
+        Expression::BinaryOp(operator, expression, expression1) => {
+                compile_operator(operator, *expression, *expression1, output, env, result)
+            }
         Expression::FunctionCall(identifier, arguments) => {
-            compile_function_call(identifier, arguments, output, env);
-        }
+                compile_function_call(identifier, arguments, output, env);
+            }
         Expression::BuiltInFunctionCall(name, expressions) => match name.as_str() {
-            "syscall" => compile_syscall(expressions, output, env),
-            x => todo!("{x}"),
-        },
+                "syscall" => compile_syscall(expressions, output, env),
+                x => todo!("{x}"),
+            },
+        Expression::UnaryOp(unary_operator, expression) => todo!(),
     }
 }
 
@@ -77,17 +78,19 @@ fn compile_function_call(
     output: &mut CompilationResult,
     env: &mut Environment,
 ) {
+    // TODO: depends on size
+    let arg_size = arguments.len() * 8;
     for expression in arguments.into_iter() {
         compile_expression(expression, output, env, ExpressionResult::Value);
     }
 
     output.code.append(&mut vec![
         Call(Immediate(Label(identifier, SegmentType::Text))),
+        // Free up arguments again
+        Add(Register(RSP), Immediate(Literal(arg_size as i64))),
         // Push function result onto the stack
         Push(Register(RAX)),
     ]);
-
-    // TODO: shrink stack to free up arguments again?
 }
 
 /// Compile systemcall expression, leaves 64 bit result from RAX register on the stack

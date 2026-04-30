@@ -50,6 +50,13 @@ pub enum Operator {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum UnaryOperator {
+    Dereference,
+    AddressOf,
+    Negation
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     Bool(bool),
     Int(i64),
@@ -60,8 +67,8 @@ pub enum Literal {
 pub enum Expression {
     Literal(Literal),
     Var(Indentifier),
-    // TODO: negation?
-    Operator(Operator, Box<Expression>, Box<Expression>),
+    BinaryOp(Operator, Box<Expression>, Box<Expression>),
+    UnaryOp(UnaryOperator, Box<Expression>),
     FunctionCall(Indentifier, Vec<Expression>),
     // Call to some built in language construct, like syscall
     BuiltInFunctionCall(Indentifier, Vec<Expression>),
@@ -78,5 +85,6 @@ pub enum Type {
     Bool,
     Int,
     Void,
-    String,
+    Char,
+    Pointer(Box<Type>)
 }
