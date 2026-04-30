@@ -1,0 +1,17 @@
+Int main() {
+    return boolfunc(0);
+}
+
+Int boolfunc(Int x) {
+    if (!False) {
+        x = x + 2;
+    } else {
+        x = x - 10;
+    }
+    if (!True) {
+        x = x - 10;
+    } else {
+        x = x + 5;
+    }
+    return x;
+}

@@ -157,4 +157,30 @@ mod tests {
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_pointers() {
+        let program = include_str!("../test_programs/Pointers.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(36));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_negation() {
+        let program = include_str!("../test_programs/Negation.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(7));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
 }

@@ -339,4 +339,27 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn test_statement_deref() {
+        let test_string = "var2 = **a; ";
+        let res: Result<_, Err<Error<_>>> = statement(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                " ",
+                Statement::Expression(Expression::BinaryOp(
+                    Operator::Assignment,
+                    Box::new(Expression::Var("var2".to_string())),
+                    Box::new(Expression::UnaryOp(
+                        UnaryOperator::Dereference,
+                        Box::new(Expression::UnaryOp(
+                            UnaryOperator::Dereference,
+                            Box::new(Expression::Var("a".to_string())),
+                        )),
+                    )),
+                ))
+            ))
+        );
+    }
 }

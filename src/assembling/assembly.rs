@@ -27,6 +27,10 @@ pub enum Instruction {
     And(Operand, Operand),
     // Bitwise or
     Or(Operand, Operand),
+    // Bitwise xor
+    Xor(Operand, Operand),
+    // Bitwise not
+    Not(Operand),
     /// Conditionals set bytes
     SetLE(Operand),
     SetL(Operand),

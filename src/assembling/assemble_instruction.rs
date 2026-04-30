@@ -1,9 +1,10 @@
-use super::assembly::*;
 use super::assemble_instruction_part::*;
+use super::assembly::*;
 use super::*;
 
 /// Output the assembly of a single instruction
 pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateAssemblingResult) {
+    // TODO: fix is32/64bit check
     match instruction {
         Instruction::ILabel(label) => {
             output
@@ -100,6 +101,17 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
             if is_32bit_reg(&reg) | is_64bit_reg(&reg) =>
         {
             add_rex_opcode_modrm_offset(output, vec![0x09], Operand::Register(rm), RegValue::Register(reg));
+        }
+        Instruction::Xor(Operand::Register(rm), Operand::Immediate(imm))
+            if is_32bit_reg(&rm) | is_64bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x81], Operand::Register(rm), RegValue::Extension(0x6));
+            add_immediate(output, imm, 4);
+        }
+        Instruction::Not(Operand::Register(rm))
+            if is_32bit_reg(&rm) | is_64bit_reg(&rm) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0xF7], Operand::Register(rm), RegValue::Extension(0x2));
         }
         Instruction::SetL(Operand::Register(rm))
             if is_8bit_reg(&rm) =>

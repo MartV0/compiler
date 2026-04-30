@@ -32,7 +32,7 @@ pub fn compile_expression(
         Expression::Literal(literal) => compile_literal(literal, output),
         Expression::Var(var) => compile_variable(var, output, env, result),
         Expression::BinaryOp(operator, expression, expression1) => {
-                compile_operator(operator, *expression, *expression1, output, env, result)
+                compile_binary_operator(operator, *expression, *expression1, output, env, result)
             }
         Expression::FunctionCall(identifier, arguments) => {
                 compile_function_call(identifier, arguments, output, env);
@@ -41,7 +41,7 @@ pub fn compile_expression(
                 "syscall" => compile_syscall(expressions, output, env),
                 x => todo!("{x}"),
             },
-        Expression::UnaryOp(unary_operator, expression) => todo!(),
+        Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, *expression, output, env, result),
     }
 }
 
@@ -133,7 +133,7 @@ fn compile_syscall(
 }
 
 /// Compile operator experession
-fn compile_operator(
+fn compile_binary_operator(
     operator: ast::Operator,
     operand1: Expression,
     operand2: Expression,
@@ -263,6 +263,55 @@ fn compile_assignment(
         // Push value onto stack again
         Push(Register(R15)),
     ]);
+}
+
+/// Compile operator experession
+fn compile_unary_operator(
+    operator: ast::UnaryOperator,
+    operand: Expression,
+    output: &mut CompilationResult,
+    env: &mut Environment,
+    result: ExpressionResult,
+) {
+    // TODO: result doorgeven?
+    match operator {
+        ast::UnaryOperator::Dereference => {
+            match result {
+                ExpressionResult::Value => {
+                    compile_expression(operand, output, env, result);
+                    output.code.append(&mut vec![
+                        // Pop operand into R14
+                        Pop(Register(R14)),
+                        Push(Indirect(R14))
+                    ]);
+                },
+                ExpressionResult::Adress => {
+                    // We need an address as result this negates the dereference in a way, so just
+                    // call the next function but with value as result type
+                    compile_expression(operand, output, env, ExpressionResult::Value);
+                },
+            }
+        },
+        ast::UnaryOperator::AddressOf => {
+            match result {
+                ExpressionResult::Value => {
+                    compile_expression(operand, output, env, ExpressionResult::Adress);
+                },
+                ExpressionResult::Adress => {
+                    panic!("Can't take adress of adress")
+                },
+            }
+        },
+        ast::UnaryOperator::Negation => {
+            compile_expression(operand, output, env, result);
+            output.code.append(&mut vec![
+                Pop(Register(R14)),
+                // Can't use bitwise not, as it flips all bits, not just the least significant one
+                Xor(Register(R14), Immediate(Literal(1))),
+                Push(Register(R14)),
+            ]);
+        },
+    };
 }
 
 /// Compile variable expression

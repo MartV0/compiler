@@ -212,7 +212,7 @@ fn expression2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 /// all unary expressions: & * !
 fn expression1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     alt((
-        unary_expression(unary_operator, expression_simple),
+        unary_expression(unary_operator, expression1),
         expression_simple
     ))(i)
 }
