@@ -212,9 +212,27 @@ fn expression2<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 /// all unary expressions: & * !
 fn expression1<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     alt((
+        array_subscript,
         unary_expression(unary_operator, expression1),
-        expression_simple
+        expression_simple,
     ))(i)
+}
+
+/// Parse array subscripting
+fn array_subscript<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    map(
+        tuple((
+            expression_simple,
+            tag("["),
+            optional_ws,
+            expression,
+            optional_ws,
+            tag("]"),
+        )),
+        |(array, _, _, index, _, _)| {
+            Expression::BinaryOp(Operator::ArraySubScript, Box::new(array), Box::new(index))
+        },
+    )(i)
 }
 
 /// Parse unary operators
@@ -390,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_expression_associativity2() {
-        let test_string = "var=*a**b*3+4+5";
+        let test_string = "var=*a[ c+d ]**b*3+4+5";
         let res: IResult<_, _, Error<_>> = expression(&test_string);
         assert_eq!(
             res,
@@ -409,7 +427,15 @@ mod tests {
                                     Operator::Multiplication,
                                     Box::new(Expression::UnaryOp(
                                         UnaryOperator::Dereference,
-                                        Box::new(Expression::Var("a".to_string()))
+                                        Box::new(Expression::BinaryOp(
+                                            Operator::ArraySubScript,
+                                            Box::new(Expression::Var("a".to_string())),
+                                            Box::new(Expression::BinaryOp(
+                                                Operator::Addition,
+                                                Box::new(Expression::Var("c".to_string())),
+                                                Box::new(Expression::Var("d".to_string())),
+                                            ))
+                                        ))
                                     )),
                                     Box::new(Expression::UnaryOp(
                                         UnaryOperator::Dereference,
@@ -463,5 +489,29 @@ mod tests {
                 )
             ))
         );
+    }
+
+    #[test]
+    fn test_array_subscript() {
+        let test_string = "*a[c+d]";
+        let res: IResult<_, _, Error<_>> = expression(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                "",
+                Expression::UnaryOp(
+                    UnaryOperator::Dereference,
+                    Box::new(Expression::BinaryOp(
+                        Operator::ArraySubScript,
+                        Box::new(Expression::Var("a".to_string())),
+                        Box::new(Expression::BinaryOp(
+                            Operator::Addition,
+                            Box::new(Expression::Var("c".to_string())),
+                            Box::new(Expression::Var("d".to_string())),
+                        ))
+                    ))
+                )
+            ))
+        )
     }
 }

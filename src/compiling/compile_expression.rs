@@ -191,6 +191,7 @@ fn compile_binary_operator(
             Mov(Register(R14), Immediate(Literal(0))),
             SetNE(Register(R14B))
         ],
+        Operator::ArraySubScript => todo!(),
     };
     // TODO: result doorgeven?
     compile_expression(operand1, output, env, result.clone());

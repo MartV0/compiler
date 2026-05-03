@@ -47,6 +47,7 @@ pub enum Operator {
     Equals,
     NotEqual,
     Assignment,
+    ArraySubScript
 }
 
 #[derive(Debug, PartialEq, Clone)]
