@@ -5,6 +5,7 @@ mod library;
 mod linking;
 mod parsing;
 mod test_compilation;
+mod type_checker;
 
 use nom::Err;
 use nom::error::Error;
@@ -24,6 +25,13 @@ fn compile(program: &str, out_file_path: &Path) {
     let parsed_program: Result<_, Err<Error<_>>> = parsing::parse(&program);
     let mut parsed_program = parsed_program.expect("failed to parse program");
     library::add_library(&mut parsed_program);
+    match type_checker::type_check(&parsed_program) {
+        Ok(_) => {},
+        Err(error) => {
+            eprintln!("Pogram not correctly typed: {error:?}");
+            panic!();
+        },
+    }
     let compiled_program = compiling::compile(parsed_program);
     print_compiled(&compiled_program);
     let assembled_program = assembling::assemble(compiled_program);

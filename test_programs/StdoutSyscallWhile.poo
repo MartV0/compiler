@@ -1,7 +1,7 @@
 Int a;
 Int main() {
     a = 5;
-    while (a) {
+    while (a != 0) {
         a = a - 1;
         syscall!(1, 1, "ha", 2);
     }
