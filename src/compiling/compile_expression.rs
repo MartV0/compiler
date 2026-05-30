@@ -1,7 +1,5 @@
 use super::CompilationResult;
 use super::Environment;
-use crate::abstract_syntax_tree::Expression;
-use crate::abstract_syntax_tree::{self as ast, Operator};
 use crate::assembling::assembly::{
     ImmediateValue::*,
     Instruction::*,
@@ -10,6 +8,13 @@ use crate::assembling::assembly::{
 };
 use crate::compiling::format_variable_label;
 use crate::linking::elf::SegmentType;
+
+use crate::abstract_syntax_tree::{self as ast, Expr, Type, Variable, Operator, UnaryOperator, Literal, map_from_expr};
+
+pub type Program = ast::Program<Expr>;
+pub type Function = ast::Function<Expr>;
+pub type Statement = ast::Statement<Expr>;
+pub type Expression = ast::Expression<Expr>;
 
 // Whether the expression should result in a address or value
 // example with assignment: a = b
@@ -32,16 +37,16 @@ pub fn compile_expression(
         Expression::Literal(literal) => compile_literal(literal, output),
         Expression::Var(var) => compile_variable(var, output, env, result),
         Expression::BinaryOp(operator, expression, expression1) => {
-                compile_binary_operator(operator, *expression, *expression1, output, env, result)
+                compile_binary_operator(operator, (*expression).0, (*expression1).0, output, env, result)
             }
         Expression::FunctionCall(identifier, arguments) => {
-                compile_function_call(identifier, arguments, output, env);
+                compile_function_call(identifier, map_from_expr(arguments), output, env);
             }
         Expression::BuiltInFunctionCall(name, expressions) => match name.as_str() {
-                "syscall" => compile_syscall(expressions, output, env),
+                "syscall" => compile_syscall(map_from_expr(expressions), output, env),
                 x => todo!("{x}"),
             },
-        Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, *expression, output, env, result),
+        Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, (*expression).0, output, env, result),
     }
 }
 

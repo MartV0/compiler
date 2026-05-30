@@ -1,9 +1,9 @@
-use crate::abstract_syntax_tree::*;
+use crate::abstract_syntax_tree::{self, Expr, Type, Variable, Operator, UnaryOperator, Literal};
 
 use nom::{
     Err, IResult, Parser,
     branch::alt,
-    bytes::complete::{tag, take_while, take_while1},
+    bytes::complete::{tag, take_while1},
     character::complete::satisfy,
     combinator::{all_consuming, map, opt, peek, value},
     error::ParseError,
@@ -13,6 +13,11 @@ use nom::{
 
 mod parse_expression;
 mod parse_program;
+
+pub type Program = abstract_syntax_tree::Program<Expr>;
+pub type Function = abstract_syntax_tree::Function<Expr>;
+pub type Statement = abstract_syntax_tree::Statement<Expr>;
+pub type Expression = abstract_syntax_tree::Expression<Expr>;
 
 /// Parse a complete program
 pub fn parse<'a, E: ParseError<&'a str> + 'a>(input: &'a str) -> Result<Program, Err<E>> {
@@ -118,13 +123,13 @@ mod tests {
                     arguments: vec![],
                     indentifier: "main".to_string(),
                     body: vec![
-                        Statement::Expression(Expression::FunctionCall(
+                        Statement::Expression(Expr(Expression::FunctionCall(
                             "print".to_string(),
-                            vec![Expression::Literal(Literal::String(
+                            vec![Expr(Expression::Literal(Literal::String(
                                 "Hello world!".to_string()
-                            ))]
-                        )),
-                        Statement::Return(Expression::Literal(Literal::Int(0)))
+                            )))]
+                        ))),
+                        Statement::Return(Expr(Expression::Literal(Literal::Int(0))))
                     ]
                 }],
                 variables: vec![],
@@ -181,34 +186,34 @@ mod tests {
                             identifier: "var2".to_string()
                         }),
                         Statement::If {
-                            condition: Expression::Var("arg2".to_string()),
-                            then_branch: vec![Statement::Expression(Expression::BinaryOp(
+                            condition: Expr(Expression::Var("arg2".to_string())),
+                            then_branch: vec![Statement::Expression(Expr(Expression::BinaryOp(
                                 Operator::Assignment,
-                                Box::new(Expression::Var("var2".to_string())),
-                                Box::new(Expression::Literal(Literal::Int(2))),
-                            ))],
-                            else_branch: vec![Statement::Expression(Expression::BinaryOp(
+                                Box::new(Expr(Expression::Var("var2".to_string()))),
+                                Box::new(Expr(Expression::Literal(Literal::Int(2)))),
+                            )))],
+                            else_branch: vec![Statement::Expression(Expr(Expression::BinaryOp(
                                 Operator::Assignment,
-                                Box::new(Expression::Var("var2".to_string())),
-                                Box::new(Expression::Literal(Literal::Int(3))),
-                            ))]
+                                Box::new(Expr(Expression::Var("var2".to_string()))),
+                                Box::new(Expr(Expression::Literal(Literal::Int(3)))),
+                            )))]
                         },
                         Statement::While {
-                            condition: Expression::Var("arg2".to_string()),
-                            body: vec![Statement::Expression(Expression::BinaryOp(
+                            condition: Expr(Expression::Var("arg2".to_string())),
+                            body: vec![Statement::Expression(Expr(Expression::BinaryOp(
                                 Operator::Assignment,
-                                Box::new(Expression::Var("arg2".to_string())),
-                                Box::new(Expression::Literal(Literal::Bool(false))),
-                            ))]
+                                Box::new(Expr(Expression::Var("arg2".to_string()))),
+                                Box::new(Expr(Expression::Literal(Literal::Bool(false)))),
+                            )))]
                         },
-                        Statement::Expression(Expression::BuiltInFunctionCall(
+                        Statement::Expression(Expr(Expression::BuiltInFunctionCall(
                             "syscall".to_string(),
                             vec![
-                                Expression::Literal(Literal::Int(1)),
-                                Expression::Literal(Literal::Int(2))
+                                Expr(Expression::Literal(Literal::Int(1))),
+                                Expr(Expression::Literal(Literal::Int(2)))
                             ]
-                        )),
-                        Statement::Return(Expression::Literal(Literal::Int(4)))
+                        ))),
+                        Statement::Return(Expr(Expression::Literal(Literal::Int(4))))
                     ]
                 }],
                 variables: vec![Variable {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::abstract_syntax_tree::map_to_expr;
 
 use nom::{
     IResult,
@@ -63,7 +64,7 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
         tuple((optional_ws, tag(","), optional_ws)),
         expression,
     ))(i)?;
-    Ok((i, Expression::FunctionCall(ident.to_string(), arguments)))
+    Ok((i, Expression::FunctionCall(ident.to_string(), map_to_expr(arguments))))
 }
 
 /// Parses a builtin function call expression
@@ -80,7 +81,7 @@ fn builtin_function_call<'a, E: ParseError<&'a str> + 'a>(
     ))(i)?;
     Ok((
         i,
-        Expression::BuiltInFunctionCall(ident.to_string(), arguments),
+        Expression::BuiltInFunctionCall(ident.to_string(), map_to_expr(arguments)),
     ))
 }
 
@@ -127,7 +128,7 @@ where
     Fe: FnMut(&'a str) -> IResult<&'a str, Expression, E> + 'a + Copy,
 {
     map(tuple((operator, expression)), |(op, expr)| {
-        Expression::UnaryOp(op, Box::new(expr))
+        Expression::UnaryOp(op, Box::new(Expr(expr)))
     })
 }
 
@@ -144,8 +145,8 @@ fn fold_ops_exprs(
 ) -> Expression {
     let expr1 = exprs.next().expect("should be at least one expression");
     std::iter::zip(ops, exprs).fold(expr1, |expr1, (op, expr2)| match associativity {
-        Associativity::Left => Expression::BinaryOp(op, Box::new(expr1), Box::new(expr2)),
-        Associativity::Right => Expression::BinaryOp(op, Box::new(expr2), Box::new(expr1)),
+        Associativity::Left => Expression::BinaryOp(op, Box::new(Expr(expr1)), Box::new(Expr(expr2))),
+        Associativity::Right => Expression::BinaryOp(op, Box::new(Expr(expr2)), Box::new(Expr(expr1))),
     })
 }
 
@@ -230,7 +231,7 @@ fn array_subscript<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a s
             tag("]"),
         )),
         |(array, _, _, index, _, _)| {
-            Expression::BinaryOp(Operator::ArraySubScript, Box::new(array), Box::new(index))
+            Expression::BinaryOp(Operator::ArraySubScript, Box::new(Expr(array)), Box::new(Expr(index)))
         },
     )(i)
 }
@@ -309,22 +310,22 @@ mod tests {
                 "",
                 Expression::BinaryOp(
                     Operator::And,
-                    Box::new(Expression::BinaryOp(
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::Greater,
-                        Box::new(Expression::Var("a".to_string())),
-                        Box::new(Expression::Var("b".to_string())),
-                    )),
-                    Box::new(Expression::BinaryOp(
+                        Box::new(Expr(Expression::Var("a".to_string()))),
+                        Box::new(Expr(Expression::Var("b".to_string()))),
+                    ))),
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::GreaterEquals,
-                        Box::new(Expression::UnaryOp(
+                        Box::new(Expr(Expression::UnaryOp(
                             UnaryOperator::AddressOf,
-                            Box::new(Expression::Var("c".to_string()))
-                        )),
-                        Box::new(Expression::UnaryOp(
+                            Box::new(Expr(Expression::Var("c".to_string())))
+                        ))),
+                        Box::new(Expr(Expression::UnaryOp(
                             UnaryOperator::AddressOf,
-                            Box::new(Expression::Var("d".to_string()))
-                        )),
-                    )),
+                            Box::new(Expr(Expression::Var("d".to_string())))
+                        ))),
+                    ))),
                 )
             ))
         );
@@ -340,16 +341,16 @@ mod tests {
                 "",
                 Expression::BinaryOp(
                     Operator::Multiplication,
-                    Box::new(Expression::BinaryOp(
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::Addition,
-                        Box::new(Expression::Var("a".to_string())),
-                        Box::new(Expression::Var("b".to_string())),
-                    )),
-                    Box::new(Expression::BinaryOp(
+                        Box::new(Expr(Expression::Var("a".to_string()))),
+                        Box::new(Expr(Expression::Var("b".to_string()))),
+                    ))),
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::Addition,
-                        Box::new(Expression::Var("c".to_string())),
-                        Box::new(Expression::Var("d".to_string())),
-                    )),
+                        Box::new(Expr(Expression::Var("c".to_string()))),
+                        Box::new(Expr(Expression::Var("d".to_string()))),
+                    ))),
                 )
             ))
         );
@@ -378,8 +379,8 @@ mod tests {
                 "",
                 Expression::BinaryOp(
                     Operator::Addition,
-                    Box::new(Expression::Literal(Literal::Int(1))),
-                    Box::new(Expression::Literal(Literal::Int(2)))
+                    Box::new(Expr(Expression::Literal(Literal::Int(1)))),
+                    Box::new(Expr(Expression::Literal(Literal::Int(2))))
                 )
             ))
         );
@@ -395,12 +396,12 @@ mod tests {
                 "",
                 Expression::BinaryOp(
                     Operator::Addition,
-                    Box::new(Expression::BinaryOp(
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::Addition,
-                        Box::new(Expression::Literal(Literal::Int(1))),
-                        Box::new(Expression::Literal(Literal::Int(2)))
-                    )),
-                    Box::new(Expression::Literal(Literal::Int(3)))
+                        Box::new(Expr(Expression::Literal(Literal::Int(1)))),
+                        Box::new(Expr(Expression::Literal(Literal::Int(2))))
+                    ))),
+                    Box::new(Expr(Expression::Literal(Literal::Int(3))))
                 )
             ))
         );
@@ -416,38 +417,38 @@ mod tests {
                 "",
                 Expression::BinaryOp(
                     Operator::Assignment,
-                    Box::new(Expression::Var("var".to_string())),
-                    Box::new(Expression::BinaryOp(
+                    Box::new(Expr(Expression::Var("var".to_string()))),
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::Addition,
-                        Box::new(Expression::BinaryOp(
+                        Box::new(Expr(Expression::BinaryOp(
                             Operator::Addition,
-                            Box::new(Expression::BinaryOp(
+                            Box::new(Expr(Expression::BinaryOp(
                                 Operator::Multiplication,
-                                Box::new(Expression::BinaryOp(
+                                Box::new(Expr(Expression::BinaryOp(
                                     Operator::Multiplication,
-                                    Box::new(Expression::UnaryOp(
+                                    Box::new(Expr(Expression::UnaryOp(
                                         UnaryOperator::Dereference,
-                                        Box::new(Expression::BinaryOp(
+                                        Box::new(Expr(Expression::BinaryOp(
                                             Operator::ArraySubScript,
-                                            Box::new(Expression::Var("a".to_string())),
-                                            Box::new(Expression::BinaryOp(
+                                            Box::new(Expr(Expression::Var("a".to_string()))),
+                                            Box::new(Expr(Expression::BinaryOp(
                                                 Operator::Addition,
-                                                Box::new(Expression::Var("c".to_string())),
-                                                Box::new(Expression::Var("d".to_string())),
-                                            ))
-                                        ))
-                                    )),
-                                    Box::new(Expression::UnaryOp(
+                                                Box::new(Expr(Expression::Var("c".to_string()))),
+                                                Box::new(Expr(Expression::Var("d".to_string()))),
+                                            )))
+                                        )))
+                                    ))),
+                                    Box::new(Expr(Expression::UnaryOp(
                                         UnaryOperator::Dereference,
-                                        Box::new(Expression::Var("b".to_string()))
-                                    ))
-                                )),
-                                Box::new(Expression::Literal(Literal::Int(3)))
-                            )),
-                            Box::new(Expression::Literal(Literal::Int(4)))
-                        )),
-                        Box::new(Expression::Literal(Literal::Int(5)))
-                    )),
+                                        Box::new(Expr(Expression::Var("b".to_string())))
+                                    )))
+                                ))),
+                                Box::new(Expr(Expression::Literal(Literal::Int(3))))
+                            ))),
+                            Box::new(Expr(Expression::Literal(Literal::Int(4))))
+                        ))),
+                        Box::new(Expr(Expression::Literal(Literal::Int(5))))
+                    ))),
                 )
             ))
         );
@@ -464,8 +465,8 @@ mod tests {
                 Expression::FunctionCall(
                     "function".to_string(),
                     vec![
-                        Expression::Var("arg1".to_string()),
-                        Expression::Literal(Literal::Int(2))
+                        Expr(Expression::Var("arg1".to_string())),
+                        Expr(Expression::Literal(Literal::Int(2)))
                     ]
                 )
             ))
@@ -483,8 +484,8 @@ mod tests {
                 Expression::FunctionCall(
                     "function".to_string(),
                     vec![
-                        Expression::Var("arg1".to_string()),
-                        Expression::Literal(Literal::Int(2))
+                        Expr(Expression::Var("arg1".to_string())),
+                        Expr(Expression::Literal(Literal::Int(2)))
                     ]
                 )
             ))
@@ -501,15 +502,15 @@ mod tests {
                 "",
                 Expression::UnaryOp(
                     UnaryOperator::Dereference,
-                    Box::new(Expression::BinaryOp(
+                    Box::new(Expr(Expression::BinaryOp(
                         Operator::ArraySubScript,
-                        Box::new(Expression::Var("a".to_string())),
-                        Box::new(Expression::BinaryOp(
+                        Box::new(Expr(Expression::Var("a".to_string()))),
+                        Box::new(Expr(Expression::BinaryOp(
                             Operator::Addition,
-                            Box::new(Expression::Var("c".to_string())),
-                            Box::new(Expression::Var("d".to_string())),
-                        ))
-                    ))
+                            Box::new(Expr(Expression::Var("c".to_string()))),
+                            Box::new(Expr(Expression::Var("d".to_string()))),
+                        )))
+                    )))
                 )
             ))
         )

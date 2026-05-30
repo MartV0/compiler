@@ -1,33 +1,33 @@
 #[derive(Debug, PartialEq, Clone)]
-pub struct Program {
-    pub functions: Vec<Function>,
+pub struct Program<ExpressionType> {
+    pub functions: Vec<Function<ExpressionType>>,
     pub variables: Vec<Variable>,
 }
 
 pub type Indentifier = String;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Function {
+pub struct Function<ExpressionType> {
     pub return_type: Type,
     pub arguments: Vec<Variable>,
     pub indentifier: Indentifier,
-    pub body: Vec<Statement>,
+    pub body: Vec<Statement<ExpressionType>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Statement {
+pub enum Statement<ExpressionType> {
     Declaration(Variable),
-    Expression(Expression),
+    Expression(ExpressionType),
     If {
-        condition: Expression,
-        then_branch: Vec<Statement>,
-        else_branch: Vec<Statement>,
+        condition: ExpressionType,
+        then_branch: Vec<Statement<ExpressionType>>,
+        else_branch: Vec<Statement<ExpressionType>>,
     },
     While {
-        condition: Expression,
-        body: Vec<Statement>,
+        condition: ExpressionType,
+        body: Vec<Statement<ExpressionType>>,
     },
-    Return(Expression),
+    Return(ExpressionType),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -64,15 +64,19 @@ pub enum Literal {
     String(String),
 }
 
+// type Exp = Expression<Exp>;
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expression {
+pub struct Expr (pub Expression<Expr>);
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expression<ExpressionType> {
     Literal(Literal),
     Var(Indentifier),
-    BinaryOp(Operator, Box<Expression>, Box<Expression>),
-    UnaryOp(UnaryOperator, Box<Expression>),
-    FunctionCall(Indentifier, Vec<Expression>),
+    BinaryOp(Operator, Box<ExpressionType>, Box<ExpressionType>),
+    UnaryOp(UnaryOperator, Box<ExpressionType>),
+    FunctionCall(Indentifier, Vec<ExpressionType>),
     // Call to some built in language construct, like syscall
-    BuiltInFunctionCall(Indentifier, Vec<Expression>),
+    BuiltInFunctionCall(Indentifier, Vec<ExpressionType>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -88,4 +92,12 @@ pub enum Type {
     Void,
     Char,
     Pointer(Box<Type>)
+}
+
+pub fn map_from_expr(exprs: Vec<Expr>) -> Vec<Expression<Expr>> {
+    exprs.into_iter().map(| expr | expr.0).collect()
+}
+
+pub fn map_to_expr(exprs: Vec<Expression<Expr>>) -> Vec<Expr> {
+    exprs.into_iter().map(| expr | Expr(expr)).collect()
 }

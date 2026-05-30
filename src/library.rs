@@ -1,11 +1,11 @@
-use crate::abstract_syntax_tree::Program;
+use crate::abstract_syntax_tree::{Program, Expr};
 use crate::parsing::parse;
 
 use nom::Err;
 use nom::error::Error;
 
 /// Add library to the program
-pub fn add_library(program: &mut Program) {
+pub fn add_library(program: &mut Program<Expr>) {
     let lib = include_str!("../poo_lib/lib.poo");
     let parsed_lib: Result<_, Err<Error<_>>> = parse(lib);
     let Program {

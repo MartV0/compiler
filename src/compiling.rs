@@ -1,6 +1,6 @@
 mod compile_expression;
 
-use crate::abstract_syntax_tree::{Expression, Function, Program, Statement, Variable};
+use crate::abstract_syntax_tree::{self, Expr, Type, Variable, Operator, UnaryOperator, Literal};
 use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
     ImmediateValue::*,
@@ -12,6 +12,11 @@ use crate::linking::elf::SegmentType;
 use compile_expression::{ExpressionResult::*, compile_expression};
 use rand::distr::{Alphanumeric, SampleString};
 use std::collections::HashMap;
+
+pub type Program = abstract_syntax_tree::Program<Expr>;
+pub type Function = abstract_syntax_tree::Function<Expr>;
+pub type Statement = abstract_syntax_tree::Statement<Expr>;
+pub type Expression = abstract_syntax_tree::Expression<Expr>;
 
 /// Struct containing the raw bytecode and data, still needs to be converted to elf/linked
 pub struct CompilationResult {
@@ -137,7 +142,7 @@ fn compile_statement(
             add_local_variable(variable, env);
         },
         Statement::Expression(expression) => {
-            compile_expression(expression, output, env, Value);
+            compile_expression(expression.0, output, env, Value);
             // TODO: depends on type of expression
             // Expression left result on the stack, pop this
             output
@@ -150,7 +155,7 @@ fn compile_statement(
             else_branch,
         } => {
             compile_if_statement(
-                condition,
+                condition.0,
                 then_branch,
                 else_branch,
                 current_function,
@@ -159,10 +164,10 @@ fn compile_statement(
             );
         }
         Statement::While { condition, body } => {
-            compile_while_statement(condition, body, current_function, output, env)
+            compile_while_statement(condition.0, body, current_function, output, env)
         }
         Statement::Return(expression) => {
-            compile_expression(expression, output, env, Value);
+            compile_expression(expression.0, output, env, Value);
             output.code.append(&mut vec![
                 // Put expression result into RAX register
                 Pop(Register(RAX)),

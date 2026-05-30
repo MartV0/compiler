@@ -1,11 +1,12 @@
 use self::TypeError::*;
 use std::{collections::HashMap, iter};
 
-use crate::abstract_syntax_tree::{
-    Expression, Function, Literal, Operator, Program, Statement,
-    Type::{self, *},
-    UnaryOperator, Variable,
-};
+use crate::abstract_syntax_tree::{self, Expr, Type::{self, *}, Variable, Operator, UnaryOperator, Literal, map_to_expr, map_from_expr};
+
+pub type Program = abstract_syntax_tree::Program<Expr>;
+pub type Function = abstract_syntax_tree::Function<Expr>;
+pub type Statement = abstract_syntax_tree::Statement<Expr>;
+pub type Expression = abstract_syntax_tree::Expression<Expr>;
 
 #[derive(Debug)]
 pub enum TypeError {
@@ -102,13 +103,13 @@ fn check_statement(
                 None => Ok(()),
             }
         }
-        Statement::Expression(expression) => check_expression(expression, variables, functions).map(| _ | ()),
+        Statement::Expression(expression) => check_expression(expression.0, variables, functions).map(| _ | ()),
         Statement::If {
             condition,
             then_branch,
             else_branch,
         } => {
-            let condition = check_expression(condition, variables, functions)?;
+            let condition = check_expression(condition.0, variables, functions)?;
             if condition != Bool {
                 Err(WrongCondition(condition))
             } else {
@@ -118,7 +119,7 @@ fn check_statement(
             }
         },
         Statement::While { condition, body } => {
-            let condition = check_expression(condition, variables, functions)?;
+            let condition = check_expression(condition.0, variables, functions)?;
             if condition != Bool {
                 Err(WrongCondition(condition))
             } else {
@@ -127,7 +128,7 @@ fn check_statement(
             }
         },
         Statement::Return(expression) => {
-            let actual_return = check_expression(expression, variables, functions)?;
+            let actual_return = check_expression(expression.0, variables, functions)?;
             if *return_type != actual_return {
                 Err(WrongReturn(actual_return))
             } else {
@@ -152,13 +153,13 @@ fn check_expression(
             None => Err(UndefinedVariable(identfier)),
         },
         Expression::BinaryOp(operator, operand1, operand2) => {
-            check_binary_operator(operator, *operand1, *operand2, variables, functions)
+            check_binary_operator(operator, (*operand1).0, (*operand2).0, variables, functions)
         }
         Expression::UnaryOp(operator, operand) => {
-            check_unary_operator(operator, *operand, variables, functions)
+            check_unary_operator(operator, (*operand).0, variables, functions)
         }
-        Expression::FunctionCall(id, args) => check_function_call(id, args, variables, functions),
-        Expression::BuiltInFunctionCall(identifier, arguments) => check_builtinfunction_call(identifier, arguments, variables, functions),
+        Expression::FunctionCall(id, args) => check_function_call(id, map_from_expr(args), variables, functions),
+        Expression::BuiltInFunctionCall(identifier, arguments) => check_builtinfunction_call(identifier, map_from_expr(arguments), variables, functions),
     }
 }
 
