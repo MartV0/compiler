@@ -101,6 +101,10 @@ pub fn map_from_expr(exprs: Vec<Expr>) -> Vec<Expression<Expr>> {
     exprs.into_iter().map(| expr | expr.0).collect()
 }
 
+pub fn map_from_exprtype(exprs: Vec<ExprType>) -> Vec<Expression<ExprType>> {
+    exprs.into_iter().map(| expr | expr.0).collect()
+}
+
 pub fn map_to_expr(exprs: Vec<Expression<Expr>>) -> Vec<Expr> {
     exprs.into_iter().map(| expr | Expr(expr)).collect()
 }

@@ -1,6 +1,6 @@
 mod compile_expression;
 
-use crate::abstract_syntax_tree::{self, Expr, Type, Variable, Operator, UnaryOperator, Literal};
+use crate::abstract_syntax_tree::{self, ExprType, Type, Variable, Operator, UnaryOperator, Literal};
 use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
     ImmediateValue::*,
@@ -13,10 +13,10 @@ use compile_expression::{ExpressionResult::*, compile_expression};
 use rand::distr::{Alphanumeric, SampleString};
 use std::collections::HashMap;
 
-pub type Program = abstract_syntax_tree::Program<Expr>;
-pub type Function = abstract_syntax_tree::Function<Expr>;
-pub type Statement = abstract_syntax_tree::Statement<Expr>;
-pub type Expression = abstract_syntax_tree::Expression<Expr>;
+pub type Program = abstract_syntax_tree::Program<ExprType>;
+pub type Function = abstract_syntax_tree::Function<ExprType>;
+pub type Statement = abstract_syntax_tree::Statement<ExprType>;
+pub type Expression = abstract_syntax_tree::Expression<ExprType>;
 
 /// Struct containing the raw bytecode and data, still needs to be converted to elf/linked
 pub struct CompilationResult {

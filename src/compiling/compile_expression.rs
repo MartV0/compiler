@@ -9,12 +9,12 @@ use crate::assembling::assembly::{
 use crate::compiling::format_variable_label;
 use crate::linking::elf::SegmentType;
 
-use crate::abstract_syntax_tree::{self as ast, Expr, Type, Variable, Operator, UnaryOperator, Literal, map_from_expr};
+use crate::abstract_syntax_tree::{self as ast, ExprType, Type, Variable, Operator, UnaryOperator, Literal, map_from_exprtype};
 
-pub type Program = ast::Program<Expr>;
-pub type Function = ast::Function<Expr>;
-pub type Statement = ast::Statement<Expr>;
-pub type Expression = ast::Expression<Expr>;
+pub type Program = ast::Program<ExprType>;
+pub type Function = ast::Function<ExprType>;
+pub type Statement = ast::Statement<ExprType>;
+pub type Expression = ast::Expression<ExprType>;
 
 // Whether the expression should result in a address or value
 // example with assignment: a = b
@@ -40,10 +40,10 @@ pub fn compile_expression(
                 compile_binary_operator(operator, (*expression).0, (*expression1).0, output, env, result)
             }
         Expression::FunctionCall(identifier, arguments) => {
-                compile_function_call(identifier, map_from_expr(arguments), output, env);
+                compile_function_call(identifier, map_from_exprtype(arguments), output, env);
             }
         Expression::BuiltInFunctionCall(name, expressions) => match name.as_str() {
-                "syscall" => compile_syscall(map_from_expr(expressions), output, env),
+                "syscall" => compile_syscall(map_from_exprtype(expressions), output, env),
                 x => todo!("{x}"),
             },
         Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, (*expression).0, output, env, result),
