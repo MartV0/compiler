@@ -25,7 +25,7 @@ fn compile(program: &str, out_file_path: &Path) {
     let parsed_program: Result<_, Err<Error<_>>> = parsing::parse(&program);
     let mut parsed_program = parsed_program.expect("failed to parse program");
     library::add_library(&mut parsed_program);
-    match type_checker::type_check(&parsed_program) {
+    match type_checker::type_check(parsed_program.clone()) {
         Ok(_) => {},
         Err(error) => {
             eprintln!("Pogram not correctly typed: {error:?}");

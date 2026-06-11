@@ -69,6 +69,9 @@ pub enum Literal {
 pub struct Expr (pub Expression<Expr>);
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct ExprType (pub Expression<ExprType>, pub Type);
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression<ExpressionType> {
     Literal(Literal),
     Var(Indentifier),

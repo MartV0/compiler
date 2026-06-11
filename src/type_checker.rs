@@ -1,14 +1,10 @@
 use self::TypeError::*;
 use std::{collections::HashMap, iter};
 
-use crate::abstract_syntax_tree::{self, Expr, Type::{self, *}, Variable, Operator, UnaryOperator, Literal, map_to_expr, map_from_expr};
-
-pub type Program = abstract_syntax_tree::Program<Expr>;
-pub type Function = abstract_syntax_tree::Function<Expr>;
-pub type Statement = abstract_syntax_tree::Statement<Expr>;
-pub type Expression = abstract_syntax_tree::Expression<Expr>;
+use crate::abstract_syntax_tree::{*, Type::{self, *}};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum TypeError {
     DuplicateVariable(String),
     UndefinedVariable(String),
@@ -27,8 +23,8 @@ pub fn type_check(
     Program {
         functions,
         variables,
-    }: &Program,
-) -> Result<(), TypeError> {
+    }: Program<Expr>,
+) -> Result<Program<ExprType>, TypeError> {
     let mut defined_functions = HashMap::new();
     for Function {
         return_type,
@@ -48,10 +44,14 @@ pub fn type_check(
         defined_variables.insert(identifier.clone(), type_.clone());
     }
 
+    let mut functions2 = vec![];
     for function in functions.into_iter() {
-        check_function(function, &mut defined_variables, &defined_functions)?;
+        functions2.push(check_function(function, &mut defined_variables, &defined_functions)?);
     }
-    Ok(())
+    Ok(Program {
+        variables,
+        functions: functions2
+    })
 }
 
 fn check_function(
@@ -60,79 +60,92 @@ fn check_function(
         arguments,
         indentifier,
         body,
-    }: &Function,
+    }: Function<Expr>,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>,
-) -> Result<(), TypeError> {
+) -> Result<Function<ExprType>, TypeError> {
     let mut defined_variables = variables.clone();
-    for Variable { type_, identifier } in arguments {
+    for Variable { type_, identifier } in arguments.iter() {
         if let Some(_) = defined_variables.insert(identifier.clone(), type_.clone()) {
             return Err(DuplicateVariable(identifier.clone()));
         }
     }
+    let mut annotated_body = vec![];
     for statement in body {
-        check_statement(statement.clone(), &return_type, &mut defined_variables, functions)?;
+        annotated_body.push(check_statement(statement.clone(), &return_type, &mut defined_variables, functions)?);
     }
-    Ok(())
+    Ok(Function {
+        return_type,
+        arguments,
+        indentifier,
+        body: annotated_body
+    })
 }
 
 fn check_block(
-    block: Vec<Statement>,
+    block: Vec<Statement<Expr>>,
     return_type: &Type,
     variables: &HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>
-) -> Result<(), TypeError> {
+) -> Result<Vec<Statement<ExprType>>, TypeError> {
     // clone variables as the variables defined in this block are local to it
     let mut variables = variables.clone();
+    let mut annoted_statements = vec![];
     for statement in block {
-        check_statement(statement, return_type, &mut variables, functions)?;
+        annoted_statements.push(check_statement(statement, return_type, &mut variables, functions)?);
     }
-    Ok(())
+    Ok(annoted_statements)
 }
 
 fn check_statement(
-    statement: Statement,
+    statement: Statement<Expr>,
     return_type: &Type,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>,
-) -> Result<(), TypeError> {
+) -> Result<Statement<ExprType>, TypeError> {
+    use Statement::*;
+
     match statement {
-        Statement::Declaration(Variable { type_, identifier }) => {
-            match variables.insert(identifier.clone(), type_) {
+        Declaration(Variable { type_, identifier }) => {
+            match variables.insert(identifier.clone(), type_.clone()) {
                 Some(_) => Err(DuplicateVariable(identifier)),
-                None => Ok(()),
+                None => Ok(Declaration(Variable { type_, identifier })),
             }
         }
-        Statement::Expression(expression) => check_expression(expression.0, variables, functions).map(| _ | ()),
-        Statement::If {
+        Expression(expression) => check_expression(expression.0, variables, functions).map(| expr | Expression(expr)),
+        If {
             condition,
             then_branch,
             else_branch,
         } => {
             let condition = check_expression(condition.0, variables, functions)?;
-            if condition != Bool {
-                Err(WrongCondition(condition))
+            if condition.1 != Bool {
+                Err(WrongCondition(condition.1))
             } else {
-                check_block(then_branch, return_type, variables, functions)?;
-                check_block(else_branch, return_type, variables, functions)?;
-                Ok(())
+                Ok(If { 
+                    condition: condition,
+                    then_branch: check_block(then_branch, return_type, variables, functions)?,
+                    else_branch: check_block(else_branch, return_type, variables, functions)?
+                })
             }
         },
-        Statement::While { condition, body } => {
+        While { condition, body } => {
             let condition = check_expression(condition.0, variables, functions)?;
-            if condition != Bool {
-                Err(WrongCondition(condition))
+            if condition.1 != Bool {
+                Err(WrongCondition(condition.1))
             } else {
-                check_block(body, return_type, variables, functions)?;
-                Ok(())
+                Ok(While {
+                    condition,
+                    body: check_block(body, return_type, variables, functions)?
+                })
             }
         },
-        Statement::Return(expression) => {
+        Return(expression) => {
             let actual_return = check_expression(expression.0, variables, functions)?;
-            if *return_type != actual_return {
-                Err(WrongReturn(actual_return))
+            if *return_type != actual_return.1 {
+                Err(WrongReturn(actual_return.1))
             } else {
-                Ok(())
+                Ok(Return(actual_return))
             }
 
         },
@@ -140,140 +153,146 @@ fn check_statement(
 }
 
 fn check_expression(
-    expression: Expression,
+    expression: Expression<Expr>,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>,
-) -> Result<Type, TypeError> {
+) -> Result<ExprType, TypeError> {
+    use crate::abstract_syntax_tree::Literal::*;
+    use Expression::*;
+
     match expression {
-        Expression::Literal(Literal::Bool(_)) => Ok(Bool),
-        Expression::Literal(Literal::Int(_)) => Ok(Int),
-        Expression::Literal(Literal::String(_)) => Ok(Pointer(Box::new(Char))),
-        Expression::Var(identfier) => match variables.get(&identfier) {
-            Some(type_) => Ok(type_.clone()),
+        Literal(Bool(b)) => Ok(ExprType(Literal(Bool(b)), Type::Bool)),
+        Literal(Int(i)) => Ok(ExprType(Literal(Int(i)), Type::Int)),
+        Literal(String(s)) => Ok(ExprType(Literal(String(s)), Type::Pointer(Box::new(Type::Char)))),
+        Var(identfier) => match variables.get(&identfier) {
+            Some(type_) => Ok(ExprType(Var(identfier), type_.clone())),
             None => Err(UndefinedVariable(identfier)),
         },
-        Expression::BinaryOp(operator, operand1, operand2) => {
+        BinaryOp(operator, operand1, operand2) => {
             check_binary_operator(operator, (*operand1).0, (*operand2).0, variables, functions)
         }
-        Expression::UnaryOp(operator, operand) => {
+        UnaryOp(operator, operand) => {
             check_unary_operator(operator, (*operand).0, variables, functions)
         }
-        Expression::FunctionCall(id, args) => check_function_call(id, map_from_expr(args), variables, functions),
-        Expression::BuiltInFunctionCall(identifier, arguments) => check_builtinfunction_call(identifier, map_from_expr(arguments), variables, functions),
+        FunctionCall(id, args) => check_function_call(id, map_from_expr(args), variables, functions),
+        BuiltInFunctionCall(identifier, arguments) => check_builtinfunction_call(identifier, map_from_expr(arguments), variables, functions),
     }
 }
 
 fn check_builtinfunction_call(
     identifier: String,
-    arguments: Vec<Expression>,
+    arguments: Vec<Expression<Expr>>,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>,
-) -> Result<Type, TypeError> {
+) -> Result<ExprType, TypeError> {
     if identifier != "syscall" {
         return Err(UndefinedBuiltinFunction(identifier));
     }
-    let mut arg_types = vec![];
+    let mut annotated_args = vec![];
     for argument in arguments.iter() {
-        arg_types.push(check_expression(argument.clone(), variables, functions)?);
+        annotated_args.push(check_expression(argument.clone(), variables, functions)?);
     }
-    if arg_types.len() < 1 && arg_types.len() > 7 {
+    if annotated_args.len() < 1 && annotated_args.len() > 7 {
         return Err(WrongArgumentAmount(identifier));
     }
-    // Can't really check other argument types, as they very wildly based on the syscall
-    if arg_types[0] != Int {
-        return Err(WrongArgument(arg_types[0].clone(), Int, identifier));
+    // Can't really check other argument types, as they vary wildly based on the syscall
+    if annotated_args[0].1 != Int {
+        return Err(WrongArgument(annotated_args[0].1.clone(), Int, identifier));
     }
-    Ok(Int)
+    Ok(ExprType(Expression::BuiltInFunctionCall(identifier, annotated_args), Int))
 }
 
 fn check_function_call(
     function_identifier: String,
-    arguments: Vec<Expression>,
+    arguments: Vec<Expression<Expr>>,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>,
-) -> Result<Type, TypeError> {
-    let mut arg_types = vec![];
+) -> Result<ExprType, TypeError> {
+    let mut annotated_args = vec![];
     for argument in arguments.iter() {
-        arg_types.push(check_expression(argument.clone(), variables, functions)?);
+        annotated_args.push(check_expression(argument.clone(), variables, functions)?);
     }
     let (return_type, func_args) = match functions.get(&function_identifier) {
         Some(x) => x,
         None => return Err(UndefinedFunction(function_identifier)),
     };
-    if arg_types.len() != func_args.len() {
+    if annotated_args.len() != func_args.len() {
         return Err(WrongArgumentAmount(function_identifier));
     }
-    for (actual, Variable { type_: expected, .. }) in iter::zip(arg_types.into_iter(), func_args.into_iter()) {
+    for (actual, Variable { type_: expected, .. }) in iter::zip(annotated_args.iter(), func_args.iter()) {
         let expected = expected.clone();
-        if actual != expected {
-            return Err(WrongArgument(actual, expected, function_identifier));
+        if actual.1 != expected {
+            return Err(WrongArgument(actual.1.clone(), expected, function_identifier));
         }
     }
-    Ok(return_type.clone())
+    Ok(ExprType(Expression::FunctionCall(function_identifier, annotated_args), return_type.clone()))
 }
 
 fn check_unary_operator(
     operator: UnaryOperator,
-    operand: Expression,
+    operand: Expression<Expr>,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>
-) -> Result<Type, TypeError> {
-    let operator_type = check_expression(operand, variables, functions)?;
+) -> Result<ExprType, TypeError> {
+    let operator_type = check_expression(operand.clone(), variables, functions)?;
     use UnaryOperator::*;
+    let expr = Expression::UnaryOp(operator.clone(), Box::new(operator_type.clone()));
     match operator {
-        Dereference => match operator_type {
-            Pointer(type_) => Ok(*type_),
-            _ => Err(WrongUnaryOperand(operator_type, operator)),
+        Dereference => match operator_type.1 {
+            Pointer(type_) => Ok(ExprType(expr, *type_)),
+            _ => Err(WrongUnaryOperand(operator_type.1, operator)),
         },
-        AddressOf => Ok(Pointer(Box::new(operator_type))),
-        Negation => match operator_type {
-            Bool => Ok(Bool),
-            _ => Err(WrongUnaryOperand(operator_type, operator)),
+        AddressOf => Ok(ExprType(expr, Pointer(Box::new(operator_type.1)))),
+        Negation => match operator_type.1 {
+            Bool => Ok(ExprType(expr, Bool)),
+            t => Err(WrongUnaryOperand(t, operator)),
         },
     }
 }
 
 fn check_binary_operator(
     operator: Operator,
-    operand1: Expression,
-    operand2: Expression,
+    operand1: Expression<Expr>,
+    operand2: Expression<Expr>,
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>
-) -> Result<Type, TypeError> {
+) -> Result<ExprType, TypeError> {
     use Operator::*;
     let op1_type = check_expression(operand1, variables, functions)?;
     let op2_type = check_expression(operand2, variables, functions)?;
+
+    let expr = Expression::BinaryOp(operator.clone(), Box::new(op1_type.clone()), Box::new(op2_type.clone()));
     match operator {
-        Addition | Subtraction | Multiplication | Division | Modulo => match (op1_type, op2_type) {
-            (Int, Int) => Ok(Int),
+        Addition | Subtraction | Multiplication | Division | Modulo => match (op1_type.1, op2_type.1) {
+            (Int, Int) => Ok(ExprType(expr, Int)),
             (op1_type, op2_type) => Err(WrongOperand(op1_type, op2_type, operator)),
         },
-        And | Or => match (op1_type, op2_type) {
-            (Bool, Bool) => Ok(Bool),
+        And | Or => match (op1_type.1, op2_type.1) {
+            (Bool, Bool) => Ok(ExprType(expr, Bool)),
             (op1_type, op2_type) => Err(WrongOperand(op1_type, op2_type, operator)),
         },
-        LessEq | Less | GreaterEquals | Greater => match (op1_type, op2_type) {
-            (Int, Int) => Ok(Bool),
+        LessEq | Less | GreaterEquals | Greater => match (op1_type.1, op2_type.1) {
+            (Int, Int) => Ok(ExprType(expr, Bool)),
             (op1_type, op2_type) => Err(WrongOperand(op1_type, op2_type, operator)),
         },
         Equals | NotEqual => {
-            if op1_type != op2_type {
-                Err(WrongOperand(op1_type, op2_type, operator))
+            if op1_type.1 != op2_type.1 {
+                Err(WrongOperand(op1_type.1, op2_type.1, operator))
             } else {
-                Ok(Bool)
+                Ok(ExprType(expr, Bool))
             }
         }
         Assignment => {
             // TODO: this should be probably also check if operand1 is some variable, not just some
             // constant or something for example
-            if op1_type != op2_type {
-                Err(WrongOperand(op1_type, op2_type, operator))
+            if op1_type.1 != op2_type.1 {
+                Err(WrongOperand(op1_type.1, op2_type.1, operator))
             } else {
-                Ok(op2_type)
+                Ok(ExprType(expr, op2_type.1))
             }
         }
-        ArraySubScript => match (op1_type, op2_type) {
-            (Pointer(type_), Int) => Ok(*type_),
+        ArraySubScript => match (op1_type.1, op2_type.1) {
+            (Pointer(type_), Int) => Ok(ExprType(expr, *type_)),
             (op1_type, op2_type) => Err(WrongOperand(op1_type, op2_type, operator)),
         },
     }
