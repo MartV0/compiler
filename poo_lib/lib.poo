@@ -10,3 +10,15 @@ Int string_len(&Char str) {
     }
     return len;
 }
+
+&Void alloc(Int bytes) {
+    return syscall!(
+        9, //mmap
+        0, //null address
+        bytes,
+        3, // read (1) + write (2)
+        34, // private (2) + anon (32)
+        0, // no fd?
+        0  // no offset
+    );
+}

@@ -1,0 +1,11 @@
+Int main() {
+    &Char string;
+    string = (&Char)(alloc(5));
+    string[0] = 'A';
+    string[1] = 'B';
+    string[2] = 'C';
+    string[3] = '\n';
+    string[4] = (Char)0;
+    print(string);
+    return 0;
+}

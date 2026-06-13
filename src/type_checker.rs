@@ -201,7 +201,12 @@ fn check_builtinfunction_call(
     if annotated_args[0].1 != Int {
         return Err(WrongArgument(annotated_args[0].1.clone(), Int, identifier));
     }
-    Ok(ExprType(Expression::BuiltInFunctionCall(identifier, annotated_args), Int))
+    let return_type = match &arguments[0] {
+        // mmap returns pointer
+        Expression::Literal(Literal::Int(9)) => Pointer(Box::new(Void)),
+        _ => Int
+    };
+    Ok(ExprType(Expression::BuiltInFunctionCall(identifier, annotated_args), return_type))
 }
 
 fn check_function_call(
@@ -256,7 +261,11 @@ fn check_unary_operator(
                 (Int, Char) |
                 (Char, Int)
                     => Ok(ExprType(expr, type_)),
+                // Can cast void pointer to any type
                 (Pointer(_), Pointer(t)) if let Void = *t
+                    => Ok(ExprType(expr, type_)),
+                // Can cast any pointer to void
+                (Pointer(t), Pointer(_)) if let Void = *t
                     => Ok(ExprType(expr, type_)),
                 (cast_type, operand_type) => Err(WrongCast(cast_type, operand_type))
             }

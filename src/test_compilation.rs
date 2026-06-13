@@ -221,4 +221,17 @@ mod tests {
         assert_eq!(stdout, "EFC".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_alloc() {
+        let program = include_str!("../test_programs/Alloc.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "ABC\n".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
 }
