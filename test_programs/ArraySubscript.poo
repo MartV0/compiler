@@ -1,5 +1,5 @@
 Int main() {
     &Char string;
     string = "ABC";
-    return Int(string[0]) + Int(string[1]) + Int(string[2]);
+    return (Int)(string[0]) + (Int)(string[1]) + (Int)(string[2]);
 }

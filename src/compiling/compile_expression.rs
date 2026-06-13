@@ -49,7 +49,6 @@ pub fn compile_expression(
                 x => todo!("{x}"),
             },
         Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, *expression, output, env, result),
-        Expression::Cast(type_, expression) => compile_cast(type_, *expression, output, env, result)
     }
 }
 
@@ -408,6 +407,7 @@ fn compile_unary_operator(
                 Push(Register(R14)),
             ]);
         },
+        ast::UnaryOperator::Cast(type_) => compile_cast(type_, operand, output, env, result),
     };
 }
 

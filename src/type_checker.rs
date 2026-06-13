@@ -178,18 +178,6 @@ fn check_expression(
         }
         FunctionCall(id, args) => check_function_call(id, map_from_expr(args), variables, functions),
         BuiltInFunctionCall(identifier, arguments) => check_builtinfunction_call(identifier, map_from_expr(arguments), variables, functions),
-        Cast(type_, operand) => check_cast(type_, *operand, variables, functions),
-    }
-}
-
-fn check_cast(type_: Type, operand: Expr, variables: &mut HashMap<String, Type>, functions: &HashMap<String, (Type, Vec<Variable>)>) -> Result<ExprType, TypeError> {
-    let operand = check_expression(operand.0, variables, functions)?;
-    match (type_.clone(), operand.1.clone()) {
-        (Int, Bool) |
-        (Char, Bool) |
-        (Int, Char)
-            => Ok(ExprType(Expression::Cast(type_.clone(), Box::new(operand)), type_)),
-        (cast_type, operand_type) => Err(WrongCast(cast_type, operand_type))
     }
 }
 
@@ -261,6 +249,18 @@ fn check_unary_operator(
             Bool => Ok(ExprType(expr, Bool)),
             t => Err(WrongUnaryOperand(t, operator)),
         },
+        Cast(type_) => {
+            match (type_.clone(), operator_type.1) {
+                (Int, Bool) |
+                (Char, Bool) |
+                (Int, Char) |
+                (Char, Int)
+                    => Ok(ExprType(expr, type_)),
+                (Pointer(_), Pointer(t)) if let Void = *t
+                    => Ok(ExprType(expr, type_)),
+                (cast_type, operand_type) => Err(WrongCast(cast_type, operand_type))
+            }
+        }
     }
 }
 

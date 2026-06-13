@@ -54,7 +54,8 @@ pub enum Operator {
 pub enum UnaryOperator {
     Dereference,
     AddressOf,
-    Negation
+    Negation,
+    Cast(Type)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -81,7 +82,6 @@ pub enum Expression<ExpressionType> {
     FunctionCall(Indentifier, Vec<ExpressionType>),
     // Call to some built in language construct, like syscall
     BuiltInFunctionCall(Indentifier, Vec<ExpressionType>),
-    Cast(Type, Box<ExpressionType>)
 }
 
 #[derive(Debug, PartialEq, Clone)]

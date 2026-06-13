@@ -6,7 +6,7 @@ use nom::{
     branch::alt,
     bytes::complete::{escaped_transform, is_not, tag},
     character::complete::{digit1, anychar},
-    combinator::{map, value},
+    combinator::{map, value, peek, not},
     error::ParseError,
     multi::separated_list0,
     sequence::tuple,
@@ -30,7 +30,6 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
         map(digit1, |str| {
             Expression::Literal(Literal::Int(str::parse(str).expect("should be parseble")))
         }),
-        cast,
         function_call,
         builtin_function_call,
         map(identifier, |ident| Expression::Var(ident.to_string())),
@@ -84,19 +83,6 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
         expression,
     ))(i)?;
     Ok((i, Expression::FunctionCall(ident.to_string(), map_to_expr(arguments))))
-}
-
-/// Parses a cast expression
-fn cast<'a, E: ParseError<&'a str> + 'a>(
-    i: &'a str,
-) -> IResult<&'a str, Expression, E> {
-    let (i, _) = optional_ws(i)?;
-    let (i, type_) = type_(i)?;
-    let (i, expression) = parenthesised(expression)(i)?;
-    Ok((
-        i,
-        Expression::Cast(type_, Box::new(Expr(expression))),
-    ))
 }
 
 /// Parses a builtin function call expression
@@ -276,6 +262,7 @@ fn unary_operator<'a, E: ParseError<&'a str> + 'a>(
         value(UnaryOperator::Dereference, tag("*")),
         value(UnaryOperator::AddressOf, tag("&")),
         value(UnaryOperator::Negation, tag("!")),
+        map(parenthesised(type_), | type_ | UnaryOperator::Cast(type_))
     ))(i)
 }
 
