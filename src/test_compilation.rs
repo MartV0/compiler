@@ -208,4 +208,17 @@ mod tests {
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_array_subscript2() {
+        let program = include_str!("../test_programs/ArraySubscript2.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "EFC".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
 }

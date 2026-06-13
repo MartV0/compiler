@@ -336,6 +336,7 @@ fn compile_assignment(
     env: &mut Environment,
     result: ExpressionResult,
 ) {
+    let size = type_size_heap(operand1.1.clone());
     // Compile target address
     compile_expression(operand1, output, env, ExpressionResult::Adress);
     // Compile value
@@ -348,7 +349,11 @@ fn compile_assignment(
         // Pop target address into R14
         Pop(Register(R14)),
         // Assign value
-        Mov(Indirect(R14), Register(R15)),
+        match size {
+            8 => Mov(Indirect(R14), Register(R15)),
+            1 => Mov(Indirect(R14), Register(R15B)),
+            _ => panic!("unsupported assignment size")
+        },
         // Push value onto stack again
         Push(Register(R15)),
     ]);

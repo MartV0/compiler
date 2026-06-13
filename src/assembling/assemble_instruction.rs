@@ -10,6 +10,10 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
                 .code_labels
                 .insert(label, output.code.len().try_into().unwrap());
         }
+        Instruction::Mov(rm, Operand::Register(reg)) 
+            if is_8bit_reg(&reg) => {
+            add_rex_opcode_modrm_offset(output, vec![0x88], rm, RegValue::Register(reg));
+        }
         Instruction::Mov(Operand::Register(reg), Operand::Immediate(val))
             if is_32or64_bit_reg(&reg) =>
         {
