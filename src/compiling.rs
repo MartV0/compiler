@@ -142,7 +142,7 @@ fn compile_statement(
             add_local_variable(variable, env);
         },
         Statement::Expression(expression) => {
-            compile_expression(expression.0, output, env, Value);
+            compile_expression(expression, output, env, Value);
             // TODO: depends on type of expression
             // Expression left result on the stack, pop this
             output
@@ -155,7 +155,7 @@ fn compile_statement(
             else_branch,
         } => {
             compile_if_statement(
-                condition.0,
+                condition,
                 then_branch,
                 else_branch,
                 current_function,
@@ -164,10 +164,10 @@ fn compile_statement(
             );
         }
         Statement::While { condition, body } => {
-            compile_while_statement(condition.0, body, current_function, output, env)
+            compile_while_statement(condition, body, current_function, output, env)
         }
         Statement::Return(expression) => {
-            compile_expression(expression.0, output, env, Value);
+            compile_expression(expression, output, env, Value);
             output.code.append(&mut vec![
                 // Put expression result into RAX register
                 Pop(Register(RAX)),
@@ -182,7 +182,7 @@ fn compile_statement(
 }
 
 fn compile_if_statement(
-    condition: Expression,
+    condition: ExprType,
     then_branch: Vec<Statement>,
     else_branch: Vec<Statement>,
     current_function: &Function,
@@ -224,7 +224,7 @@ fn compile_if_statement(
 }
 
 fn compile_while_statement(
-    condition: Expression,
+    condition: ExprType,
     body: Vec<Statement>,
     current_function: &Function,
     output: &mut CompilationResult,

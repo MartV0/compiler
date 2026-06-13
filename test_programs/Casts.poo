@@ -1,0 +1,3 @@
+Int main() {
+    return Int(False) + Int(True)*2 + Int(True);
+}

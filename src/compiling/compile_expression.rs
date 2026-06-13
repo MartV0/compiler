@@ -1,5 +1,6 @@
 use super::CompilationResult;
 use super::Environment;
+use crate::assembling::assembly::Operand;
 use crate::assembling::assembly::{
     ImmediateValue::*,
     Instruction::*,
@@ -28,26 +29,37 @@ pub enum ExpressionResult {
 
 /// Compile an expression, leaves result of the expression on the stack
 pub fn compile_expression(
-    expression: Expression,
+    expression: ExprType,
     output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,
 ) {
+    let ExprType (expression, type_) = expression;
     match expression {
         Expression::Literal(literal) => compile_literal(literal, output),
         Expression::Var(var) => compile_variable(var, output, env, result),
         Expression::BinaryOp(operator, expression, expression1) => {
-                compile_binary_operator(operator, (*expression).0, (*expression1).0, output, env, result)
+                compile_binary_operator(operator, *expression, *expression1, type_, output, env, result)
             }
         Expression::FunctionCall(identifier, arguments) => {
-                compile_function_call(identifier, map_from_exprtype(arguments), output, env);
+                compile_function_call(identifier, arguments, output, env);
             }
         Expression::BuiltInFunctionCall(name, expressions) => match name.as_str() {
-                "syscall" => compile_syscall(map_from_exprtype(expressions), output, env),
+                "syscall" => compile_syscall(expressions, output, env),
                 x => todo!("{x}"),
             },
-        Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, (*expression).0, output, env, result),
+        Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, *expression, output, env, result),
+        Expression::Cast(type_, expression) => compile_cast(type_, *expression, output, env, result)
     }
+}
+
+/// Compile a cast expression
+fn compile_cast(type_: Type, operand: ExprType, output: &mut CompilationResult,
+    env: &mut Environment,
+    result: ExpressionResult,
+    ) {
+    compile_expression(operand, output, env, result);
+    // all the supported casts don't do any logic, just for the type checker, so no code here
 }
 
 /// Compile a literal expression
@@ -79,7 +91,7 @@ fn compile_literal(literal: ast::Literal, output: &mut CompilationResult) {
 /// Pushes arguments to stack, first arguments on the bottom
 fn compile_function_call(
     identifier: ast::Indentifier,
-    arguments: Vec<Expression>,
+    arguments: Vec<ExprType>,
     output: &mut CompilationResult,
     env: &mut Environment,
 ) {
@@ -100,7 +112,7 @@ fn compile_function_call(
 
 /// Compile systemcall expression, leaves 64 bit result from RAX register on the stack
 fn compile_syscall(
-    arguments: Vec<Expression>,
+    arguments: Vec<ExprType>,
     output: &mut CompilationResult,
     env: &mut Environment,
 ) {
@@ -140,8 +152,9 @@ fn compile_syscall(
 /// Compile operator experession
 fn compile_binary_operator(
     operator: ast::Operator,
-    operand1: Expression,
-    operand2: Expression,
+    operand1: ExprType,
+    operand2: ExprType,
+    type_: Type,
     output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,
@@ -157,6 +170,10 @@ fn compile_binary_operator(
         },
         Operator::Modulo => {
             compile_division(DivisionResult::Remainder, operand1, operand2, output, env, result);
+            return;
+        },
+        Operator::ArraySubScript => {
+            compile_array_subscript(operand1, operand2, type_, output, env, result);
             return;
         },
         Operator::Addition => vec![Add(Register(R14), Register(R15))],
@@ -196,7 +213,6 @@ fn compile_binary_operator(
             Mov(Register(R14), Immediate(Literal(0))),
             SetNE(Register(R14B))
         ],
-        Operator::ArraySubScript => todo!(),
     };
     // TODO: result doorgeven?
     compile_expression(operand1, output, env, result.clone());
@@ -221,8 +237,8 @@ enum DivisionResult {
 
 fn compile_division(
     div_result: DivisionResult,
-    operand1: Expression,
-    operand2: Expression,
+    operand1: ExprType,
+    operand2: ExprType,
     output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,
@@ -245,10 +261,77 @@ fn compile_division(
     ]);
 }
 
+/// Compiles array subscript
+fn compile_array_subscript(
+    operand1: ExprType,
+    operand2: ExprType,
+    type_: Type,
+    output: &mut CompilationResult,
+    env: &mut Environment,
+    result: ExpressionResult,
+) {
+    // Even though this value needs to return an address, it is already a pointer type, so the value
+    // contains an address already
+    compile_expression(operand1, output, env, ExpressionResult::Value);
+    compile_expression(operand2, output, env, ExpressionResult::Value);
+    output
+        .code
+        .append(&mut vec![
+            // pop base address into r14
+            Pop(Register(R14)),
+            // pop offset into r15
+            Pop(Register(R15)),
+        ]);
+
+    let size = type_size_heap(type_).into();
+    // If operand size is not a byte, we need to multiply the offset by the operand size
+    if size != 1 {
+        output
+            .code
+            .append(&mut vec![
+                Mov(Register(R13), Immediate(Literal(size))),
+                IMul(Register(R15), Register(R13))
+            ]);
+    }
+
+    // Add offset to base address
+    output.code.push(Add(Register(R15), Register(R14)));
+
+
+    match result {
+        ExpressionResult::Value => {
+            output
+                .code
+                .append(&mut match size {
+                    8 => vec![Push(Indirect(R15))],
+                    // If type only has a single byte we don't want to move 8 bytes from the address
+                    // only 1, so we have to use movzx, which sets the other bytes to zero
+                    1 => vec![
+                        MovZX(Register(R15), Indirect(R15)),
+                        Push(Register(R15))
+                    ],
+                    _ => panic!("Unsupported array size")
+                })
+        },
+        ExpressionResult::Adress => output.code.push(Push(Register(R15))),
+    }
+}
+
+/// Returns the size of type in bytes on the heap
+fn type_size_heap(type_: Type) -> u32 {
+    match type_ {
+        Type::Bool => 1,
+        Type::Int => 8,
+        Type::Void => 0,
+        Type::Char => 1,
+        Type::Pointer(_) => 8,
+    }
+}
+
 /// Compiles assignment operator
 fn compile_assignment(
-    operand1: Expression,
-    operand2: Expression,
+    operand1: ExprType,
+    operand2: ExprType,
     output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,
@@ -274,7 +357,7 @@ fn compile_assignment(
 /// Compile operator experession
 fn compile_unary_operator(
     operator: ast::UnaryOperator,
-    operand: Expression,
+    operand: ExprType,
     output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,

@@ -29,6 +29,7 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
         map(digit1, |str| {
             Expression::Literal(Literal::Int(str::parse(str).expect("should be parseble")))
         }),
+        cast,
         function_call,
         builtin_function_call,
         map(identifier, |ident| Expression::Var(ident.to_string())),
@@ -65,6 +66,19 @@ fn function_call<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str
         expression,
     ))(i)?;
     Ok((i, Expression::FunctionCall(ident.to_string(), map_to_expr(arguments))))
+}
+
+/// Parses a cast expression
+fn cast<'a, E: ParseError<&'a str> + 'a>(
+    i: &'a str,
+) -> IResult<&'a str, Expression, E> {
+    let (i, _) = optional_ws(i)?;
+    let (i, type_) = type_(i)?;
+    let (i, expression) = parenthesised(expression)(i)?;
+    Ok((
+        i,
+        Expression::Cast(type_, Box::new(Expr(expression))),
+    ))
 }
 
 /// Parses a builtin function call expression

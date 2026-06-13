@@ -28,7 +28,7 @@ fn compile(program: &str, out_file_path: &Path) {
     let annoted_program = match type_checker::type_check(parsed_program.clone()) {
         Ok(program) => program,
         Err(error) => {
-            eprintln!("Pogram not correctly typed: {error:?}");
+            eprintln!("Program not correctly typed: {error:?}");
             panic!();
         },
     };

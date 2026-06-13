@@ -7,6 +7,8 @@ pub enum Instruction {
     // Not an actual instruction, just used to point to a location in the code
     ILabel(Label),
     Mov(Operand, Operand),
+    // Mov with zero extent, for when moving smaller sized operand to bigger sized one
+    MovZX(Operand, Operand),
     Syscall,
     Jmp(Operand),
     JE(ImmediateValue),
@@ -94,6 +96,12 @@ pub fn is_64bit_reg(reg: &Register) -> bool {
         R14 | R15 => true,
         _ => false
     }
+}
+
+/// Check if reg is a 32 or 64 bit register
+#[rustfmt::skip]
+pub fn is_32or64_bit_reg(reg: &Register) -> bool {
+    is_32bit_reg(reg) || is_64bit_reg(reg)
 }
 
 /// Check if reg is a 32 bit register
