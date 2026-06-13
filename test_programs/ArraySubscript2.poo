@@ -1,10 +1,8 @@
 Int main() {
     &Char string1;
     string1 = "ABC";
-    &Char string2;
-    string2 = "DEF";
-    string1[0] = string2[1];
-    string1[1] = string2[2];
+    string1[0] = 'E';
+    string1[1] = 'F';
     print(string1);
     return 0;
 }

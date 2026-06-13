@@ -5,7 +5,7 @@ use nom::{
     IResult,
     branch::alt,
     bytes::complete::{escaped_transform, is_not, tag},
-    character::complete::digit1,
+    character::complete::{digit1, anychar},
     combinator::{map, value},
     error::ParseError,
     multi::separated_list0,
@@ -26,6 +26,7 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
         value(Expression::Literal(Literal::Bool(true)), tag("True")),
         value(Expression::Literal(Literal::Bool(false)), tag("False")),
         map(string_literal, |s| Expression::Literal(Literal::String(s))),
+        map(char_literal, |s| Expression::Literal(Literal::Char(s))),
         map(digit1, |str| {
             Expression::Literal(Literal::Int(str::parse(str).expect("should be parseble")))
         }),
@@ -35,6 +36,23 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
         map(identifier, |ident| Expression::Var(ident.to_string())),
         parenthesised(expression),
     ))(i)
+}
+
+/// Parses a char literal
+fn char_literal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, u8, E> {
+    let (i, _) = optional_ws(i)?;
+    let (i, _) = tag("'")(i)?;
+    let (i, char) = alt((
+            value('\\', tag("\\\\")),
+            value('\"', tag("\\\"")),
+            value('\n', tag("\\n")),
+            value('\t', tag("\\t")),
+            value('\r', tag("\\r")),
+            anychar
+        ))(i)?;
+    let char = char as u8;
+    let (i, _) = tag("\'")(i)?;
+    Ok((i, char))
 }
 
 /// Parses a string literal

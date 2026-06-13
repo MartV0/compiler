@@ -84,6 +84,9 @@ fn compile_literal(literal: ast::Literal, output: &mut CompilationResult) {
                 .code
                 .push(Push(Immediate(Label(label, SegmentType::Data))));
         }
+        ast::Literal::Char(char) => {
+            output.code.push(Push(Immediate(Literal(char.into()))))
+        }
     }
 }
 

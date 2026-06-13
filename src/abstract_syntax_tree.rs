@@ -62,6 +62,7 @@ pub enum Literal {
     Bool(bool),
     Int(i64),
     String(String),
+    Char(u8)
 }
 
 // type Exp = Expression<Exp>;

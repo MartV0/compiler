@@ -165,6 +165,7 @@ fn check_expression(
         Literal(Bool(b)) => Ok(ExprType(Literal(Bool(b)), Type::Bool)),
         Literal(Int(i)) => Ok(ExprType(Literal(Int(i)), Type::Int)),
         Literal(String(s)) => Ok(ExprType(Literal(String(s)), Type::Pointer(Box::new(Type::Char)))),
+        Literal(Char(c)) => Ok(ExprType(Literal(Char(c)), Type::Char)),
         Var(identfier) => match variables.get(&identfier) {
             Some(type_) => Ok(ExprType(Var(identfier), type_.clone())),
             None => Err(UndefinedVariable(identfier)),
