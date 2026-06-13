@@ -1,2 +1,12 @@
 Void print(&Char str) {
+    syscall!(1, 1, str, string_len(str));
+}
+
+Int string_len(&Char str) {
+    Int len;
+    len = 0;
+    while (Int(str[len]) != 0) {
+        len = len + 1;
+    }
+    return len;
 }

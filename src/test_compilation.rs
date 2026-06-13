@@ -40,7 +40,6 @@ fn random_file_name() -> PathBuf {
 mod tests {
     use super::*;
 
-    #[ignore]
     #[test]
     fn test_hello_world() {
         let program = include_str!("../test_programs/HelloWorld.poo");
@@ -50,7 +49,7 @@ mod tests {
             stderr,
         } = test_full_compiler(program).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
-        assert_eq!(stdout, "Hello world\n".as_bytes().to_vec());
+        assert_eq!(stdout, "Hello world!\n".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
     }
 
