@@ -108,7 +108,7 @@ fn fix_code_labels(output: &mut IntermediateAssemblingResult) {
     {
         let bytes = (*bytes).into();
         let offset = *address_index;
-        let label_adress: i64 = (*output.code_labels.get(label)
+        let label_address: i64 = (*output.code_labels.get(label)
             .expect("Could not find label"))
             .try_into()
             .unwrap();
@@ -116,9 +116,9 @@ fn fix_code_labels(output: &mut IntermediateAssemblingResult) {
         let new_address: i64 = match label_type {
             LabelType::Relative => {
                 let next_instruction: i64 = usize::try_into(offset + bytes).unwrap();
-                label_adress - next_instruction
+                label_address - next_instruction
             }
-            LabelType::Absolute => label_adress,
+            LabelType::Absolute => label_address,
         };
 
         // Write the new address back as little endian bytes

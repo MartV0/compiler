@@ -234,4 +234,17 @@ mod tests {
         assert_eq!(stdout, "ABC\n".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_64bit_literal() {
+        let program = include_str!("../test_programs/64bit_literal.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "true".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
 }

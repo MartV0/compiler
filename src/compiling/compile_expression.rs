@@ -19,12 +19,12 @@ pub type Expression = ast::Expression<ExprType>;
 
 // Whether the expression should result in a address or value
 // example with assignment: a = b
-// a should return an adress
+// a should return an address
 // b should return an value
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExpressionResult {
     Value,
-    Adress,
+    Address,
 }
 
 /// Compile an expression, leaves result of the expression on the stack
@@ -46,7 +46,7 @@ pub fn compile_expression(
             }
         Expression::BuiltInFunctionCall(name, expressions) => match name.as_str() {
                 "syscall" => compile_syscall(expressions, output, env),
-                x => todo!("{x}"),
+                x => panic!("Unsupported builtin function call: {x}"),
             },
         Expression::UnaryOp(unary_operator, expression) => compile_unary_operator(unary_operator, *expression, output, env, result),
     }
@@ -59,6 +59,7 @@ fn compile_cast(type_: Type, operand: ExprType, output: &mut CompilationResult,
     ) {
     compile_expression(operand, output, env, result);
     // all the supported casts don't do any logic, just for the type checker, so no code here
+    // TODO: maybe I need to zero some bits when converting to char/bool from Int
 }
 
 /// Compile a literal expression
@@ -69,9 +70,11 @@ fn compile_literal(literal: ast::Literal, output: &mut CompilationResult) {
             output.code.push(Push(Immediate(Literal(val))))
         }
         ast::Literal::Int(i) => {
-            // TODO: Seems like push and pop are always 64 bit?
+            // Seems like push and pop are always 64 bit?
             // https://stackoverflow.com/questions/43435764/64-bit-mode-does-not-support-32-bit-push-and-pop-instructions
-            output.code.push(Push(Immediate(Literal(i))))
+            // Use mov so we can actually use a 64 bit immediate
+            output.code.push(Mov(Register(R15), Immediate(Literal(i))));
+            output.code.push(Push(Register(R15)));
         }
         ast::Literal::String(str) => {
             let mut string_data = str.as_bytes().to_vec();
@@ -97,8 +100,7 @@ fn compile_function_call(
     output: &mut CompilationResult,
     env: &mut Environment,
 ) {
-    // TODO: depends on size
-    let arg_size = arguments.len() * 8;
+    let arg_size: i64 = arguments.iter().map(| arg | type_size_stack(&arg.1) as i64).sum();
     for expression in arguments.into_iter() {
         compile_expression(expression, output, env, ExpressionResult::Value);
     }
@@ -106,7 +108,7 @@ fn compile_function_call(
     output.code.append(&mut vec![
         Call(Immediate(Label(identifier, SegmentType::Text))),
         // Free up arguments again
-        Add(Register(RSP), Immediate(Literal(arg_size as i64))),
+        Add(Register(RSP), Immediate(Literal(arg_size))),
         // Push function result onto the stack
         Push(Register(RAX)),
     ]);
@@ -216,7 +218,6 @@ fn compile_binary_operator(
             SetNE(Register(R14B))
         ],
     };
-    // TODO: result doorgeven?
     compile_expression(operand1, output, env, result.clone());
     compile_expression(operand2, output, env, result);
 
@@ -245,7 +246,6 @@ fn compile_division(
     env: &mut Environment,
     result: ExpressionResult,
 ) {
-    // TODO: result doorgeven?
     compile_expression(operand1, output, env, result.clone());
     compile_expression(operand2, output, env, result);
 
@@ -285,7 +285,7 @@ fn compile_array_subscript(
             Pop(Register(R15)),
         ]);
 
-    let size = type_size_heap(type_).into();
+    let size = type_size(&type_).into();
     // If operand size is not a byte, we need to multiply the offset by the operand size
     if size != 1 {
         output
@@ -315,17 +315,30 @@ fn compile_array_subscript(
                     _ => panic!("Unsupported array size")
                 })
         },
-        ExpressionResult::Adress => output.code.push(Push(Register(R15))),
+        ExpressionResult::Address => output.code.push(Push(Register(R15))),
     }
 }
 
-/// Returns the size of type in bytes on the heap
-fn type_size_heap(type_: Type) -> u32 {
+/// Returns the size of type in bytes
+pub fn type_size(type_: &Type) -> u32 {
     match type_ {
         Type::Bool => 1,
         Type::Int => 8,
         Type::Void => 0,
         Type::Char => 1,
+        Type::Pointer(_) => 8,
+    }
+}
+
+/// Returns the size of type in bytes on the stack
+/// Different than the sizes on the heap as x64 doesn't really support pushes
+/// smaller then 64 bits
+pub fn type_size_stack(type_: &Type) -> u32 {
+    match type_ {
+        Type::Bool => 8,
+        Type::Int => 8,
+        Type::Void => 0,
+        Type::Char => 8,
         Type::Pointer(_) => 8,
     }
 }
@@ -338,11 +351,10 @@ fn compile_assignment(
     env: &mut Environment,
     result: ExpressionResult,
 ) {
-    let size = type_size_heap(operand1.1.clone());
+    let size = type_size(&operand1.1);
     // Compile target address
-    compile_expression(operand1, output, env, ExpressionResult::Adress);
+    compile_expression(operand1, output, env, ExpressionResult::Address);
     // Compile value
-    // TODO: result doorgeven?
     compile_expression(operand2, output, env, result);
 
     output.code.append(&mut vec![
@@ -369,7 +381,6 @@ fn compile_unary_operator(
     env: &mut Environment,
     result: ExpressionResult,
 ) {
-    // TODO: result doorgeven?
     match operator {
         ast::UnaryOperator::Dereference => {
             match result {
@@ -381,7 +392,7 @@ fn compile_unary_operator(
                         Push(Indirect(R14))
                     ]);
                 },
-                ExpressionResult::Adress => {
+                ExpressionResult::Address => {
                     // We need an address as result this negates the dereference in a way, so just
                     // call the next function but with value as result type
                     compile_expression(operand, output, env, ExpressionResult::Value);
@@ -391,10 +402,10 @@ fn compile_unary_operator(
         ast::UnaryOperator::AddressOf => {
             match result {
                 ExpressionResult::Value => {
-                    compile_expression(operand, output, env, ExpressionResult::Adress);
+                    compile_expression(operand, output, env, ExpressionResult::Address);
                 },
-                ExpressionResult::Adress => {
-                    panic!("Can't take adress of adress")
+                ExpressionResult::Address => {
+                    panic!("Can't take address of address")
                 },
             }
         },
@@ -435,7 +446,7 @@ fn compile_variable(
 fn compile_local_variable(output: &mut CompilationResult, offset: i32, result: ExpressionResult) {
     match result {
         ExpressionResult::Value => output.code.push(Push(IndirectDisplacement(RBP, offset))),
-        ExpressionResult::Adress => output.code.append(&mut vec![
+        ExpressionResult::Address => output.code.append(&mut vec![
             LEA(Register(R14), IndirectDisplacement(RBP, offset)),
             Push(Register(R14)),
         ]),
@@ -452,7 +463,7 @@ fn compile_global_variable(
             Mov(Register(R15), Immediate(Label(label, SegmentType::Data))),
             Push(Indirect(R15)),
         ]),
-        ExpressionResult::Adress => output
+        ExpressionResult::Address => output
             .code
             .push(Push(Immediate(Label(label, SegmentType::Data)))),
     }

@@ -8,6 +8,7 @@ use crate::assembling::assembly::{
     Operand::*,
     Register::*,
 };
+use crate::compiling::compile_expression::type_size;
 use crate::linking::elf::SegmentType;
 use compile_expression::{ExpressionResult::*, compile_expression};
 use rand::distr::{Alphanumeric, SampleString};
@@ -90,10 +91,10 @@ fn format_variable_label(identifier: &str) -> String {
 
 /// Compile a global variable declaration
 fn compile_variable(variable: Variable, output: &mut CompilationResult) {
-    // TODO: depends on size of type
+    let size: usize = type_size(&variable.type_) as usize;
     output
         .data
-        .insert(format_variable_label(&variable.identifier), [0; 8].to_vec());
+        .insert(format_variable_label(&variable.identifier), vec![0;size]);
 }
 
 /// Compile a function definition
@@ -102,14 +103,13 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
         local: HashMap::new(),
     };
     //rbp=previous saved rbp
-    //rbp+8=return adress
+    //rbp+8=return address
     //rbp+16=last func arg
     //rbp+24=second to last func arg
     let mut offset: i32 = 16;
     for arg in function.arguments.iter().rev() {
         env.local.insert(arg.identifier.clone(), offset);
-        // TODO: depends on arg size
-        offset += 8;
+        offset += type_size(&arg.type_) as i32;
     }
 
     let env_size = environment_size(&function.body);
@@ -142,12 +142,12 @@ fn compile_statement(
             add_local_variable(variable, env);
         },
         Statement::Expression(expression) => {
+            let size = type_size(&expression.1);
             compile_expression(expression, output, env, Value);
-            // TODO: depends on type of expression
             // Expression left result on the stack, pop this
             output
                 .code
-                .push(Add(Register(RSP), Immediate(Literal(0x8))));
+                .push(Add(Register(RSP), Immediate(Literal(size as i64))));
         }
         Statement::If {
             condition,
@@ -266,18 +266,19 @@ fn compile_block(
 
 fn add_local_variable(Variable{ type_, identifier }: Variable, env: &mut Environment) {
     // Calculate the new offset to rbp, as the current lowest offset minus variable size
-    // TODO: depends on size of var
-    let new_offset = env.local.iter().map(|x | x.1).filter(| x | **x < 0).min().unwrap_or(&0) - 8;
+    let new_offset = env.local.iter()
+        .map(|x | x.1)
+        // filter out anything positive addresses, those are function arguments
+        .filter(| x | **x < 0).min().unwrap_or(&0) - (type_size(&type_) as i32);
     env.local.insert(identifier, new_offset);
 }
 
 // Returns size of local environment in bytes, excluding,
 fn environment_size(statements: &Vec<Statement>) -> u64 {
-    let mut size = 0;
+    let mut size: u64 = 0;
     for statement in statements {
         match statement {
-            // TODO: should depend on type size
-            Statement::Declaration(_variable) => size += 8,
+            Statement::Declaration(_variable) => size += compile_expression::type_size(&_variable.type_) as u64,
             Statement::Expression(_expression) => {},
             Statement::If { then_branch, else_branch, .. } => {
                 size += environment_size(then_branch);
@@ -287,5 +288,6 @@ fn environment_size(statements: &Vec<Statement>) -> u64 {
             Statement::Return(_expression) => {},
         }
     }
-    size
+    // round up size to first multiple of 8, needed to keep stack aligned
+    ((size + 7) / 8) * 8
 }

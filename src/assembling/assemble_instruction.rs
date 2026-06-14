@@ -17,8 +17,13 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
         Instruction::Mov(Operand::Register(reg), Operand::Immediate(val))
             if is_32or64_bit_reg(&reg) =>
         {
-            add_rex_opcode_modrm_offset(output, vec![0xC7], Operand::Register(reg), RegValue::None);
-            add_immediate(output, val, 4);
+            let immediate_bytes = if is_64bit_reg(&reg) {
+                8
+            } else {
+                4
+            };
+            add_rex_opcode_reg(output, 0xB8, reg);
+            add_immediate(output, val, immediate_bytes);
         }
         Instruction::Mov(rm, Operand::Register(reg)) 
             if is_32or64_bit_reg(&reg) => {

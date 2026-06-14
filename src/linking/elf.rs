@@ -126,7 +126,7 @@ pub fn create_elf(mut input: AssemblingResult) -> Vec<u8> {
 fn create_program_header(
     ph_type: SegmentType,
     offset: Elf64_Off,
-    virtual_adress: Elf64_Addr,
+    virtual_address: Elf64_Addr,
     size: Elf64_Xword,
 ) -> Elf64_Phdr {
     // flags:
@@ -148,7 +148,7 @@ fn create_program_header(
         p_flags: flags,
         // Where to find segment in the file
         p_offset: offset,
-        p_vaddr: virtual_adress,
+        p_vaddr: virtual_address,
         // physical memory, only relevant for firmware etc
         p_paddr: 0,
         p_filesz: size,

@@ -25,6 +25,26 @@ const RIP_REGISTERS: [Register; 4] = [
     R13, R13D,
 ];
 
+/// Add opcode, rex if required and register is encoded in the opcode
+pub fn add_rex_opcode_reg(
+    output: &mut IntermediateAssemblingResult,
+    mut opcode: u8,
+    reg: Register
+) {
+    let mut reg_bits = reg_to_XREG_bits(&reg);
+    let rex_b = (reg_bits >> 3) == 1;
+    let rex_w = is_64bit_reg(&reg);
+    if rex_w | rex_b {
+        let rex: u8 = 0b0100 << 4
+            | to_byte(rex_w) << 3
+            | to_byte(rex_b);
+        output.code.push(rex);
+    }
+    reg_bits &= 0b111;
+    opcode |= reg_bits;
+    output.code.push(opcode);
+}
+
 /// Add opcode, modrm byte and optionally the rex byte infront
 /// - output: where to output the bytecode
 /// - rm: r/m argument, usually the first operand
