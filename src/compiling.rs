@@ -111,7 +111,9 @@ fn compile_function(function: Function, output: &mut CompilationResult) {
         offset += type_size(&arg.type_) as i32;
     }
 
-    let env_size = environment_size(&function.body);
+    // round up size to first multiple of 8, needed to keep stack aligned
+    let env_size = ((environment_size(&function.body) + 7) / 8) * 8;
+
     output.code.append(&mut vec![
         ILabel(function.indentifier.clone()),
         Push(Register(RBP)),
@@ -192,10 +194,10 @@ fn compile_if_statement(
     compile_expression(condition, output, env, Value);
     let begin_else_label = format_random_label("begin_else+");
     output.code.append(&mut vec![
-        // Put condition result into R14
+        // Put condition result into R14 (unfortunately no 8 bit pop)
         Pop(Register(R14)),
         // Cmp to zero
-        Cmp(Register(R14), Immediate(Literal(0))),
+        Cmp(Register(R14B), Immediate(Literal(0))),
         // Jump over then branch if condition is zero
         JE(ImmediateValue::Label(
             begin_else_label.clone(),
@@ -246,7 +248,7 @@ fn compile_while_statement(
         // Put condition result into R14
         Pop(Register(R14)),
         // Cmp to zero
-        Cmp(Register(R14), Immediate(Literal(0))),
+        Cmp(Register(R14B), Immediate(Literal(0))),
         // Jump to body if condition is not zero
         JNE(ImmediateValue::Label(body_label, SegmentType::Text)),
     ]);
@@ -287,6 +289,5 @@ fn environment_size(statements: &Vec<Statement>) -> u64 {
             Statement::Return(_expression) => {},
         }
     }
-    // round up size to first multiple of 8, needed to keep stack aligned
-    ((size + 7) / 8) * 8
+    size
 }

@@ -76,6 +76,12 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
             add_rex_opcode_modrm_offset(output, vec![0x81], Operand::Register(reg), RegValue::Extension(7));
             add_immediate(output, val, 4);
         }
+        Instruction::Cmp(Operand::Register(reg), Operand::Immediate(val))
+            if is_8bit_reg(&reg) =>
+        {
+            add_rex_opcode_modrm_offset(output, vec![0x80], Operand::Register(reg), RegValue::Extension(7));
+            add_immediate(output, val, 1);
+        }
         Instruction::Cmp(Operand::Register(rm), Operand::Register(reg))
             if is_32or64_bit_reg(&reg) | is_32or64_bit_reg(&rm) =>
         {

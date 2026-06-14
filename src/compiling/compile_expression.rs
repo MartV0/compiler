@@ -183,34 +183,26 @@ fn compile_binary_operator(
         Operator::Or => vec![Or(Register(R14), Register(R15))],
         Operator::LessEq => vec![
             Cmp(Register(R14), Register(R15)),
-            // TODO: if we just use 8 bit registers for all we wouldn't need this?
-            // set entire register to 0, otherwise upper 7 bytes might still contain non-zero values
-            Mov(Register(R14), Immediate(Literal(0))),
             SetLE(Register(R14B))
         ],
         Operator::Less => vec![
             Cmp(Register(R14), Register(R15)),
-            Mov(Register(R14), Immediate(Literal(0))),
             SetL(Register(R14B))
         ],
         Operator::GreaterEquals => vec![
             Cmp(Register(R14), Register(R15)),
-            Mov(Register(R14), Immediate(Literal(0))),
             SetGE(Register(R14B))
         ],
         Operator::Greater => vec![
             Cmp(Register(R14), Register(R15)),
-            Mov(Register(R14), Immediate(Literal(0))),
             SetG(Register(R14B))
         ],
         Operator::Equals => vec![
             Cmp(Register(R14), Register(R15)),
-            Mov(Register(R14), Immediate(Literal(0))),
             SetE(Register(R14B))
         ],
         Operator::NotEqual => vec![
             Cmp(Register(R14), Register(R15)),
-            Mov(Register(R14), Immediate(Literal(0))),
             SetNE(Register(R14B))
         ],
     };
