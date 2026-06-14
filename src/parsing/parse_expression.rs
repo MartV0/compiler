@@ -6,7 +6,7 @@ use nom::{
     branch::alt,
     bytes::complete::{escaped_transform, is_not, tag},
     character::complete::{digit1, anychar},
-    combinator::{map, value, peek, not},
+    combinator::{map, value},
     error::ParseError,
     multi::separated_list0,
     sequence::tuple,

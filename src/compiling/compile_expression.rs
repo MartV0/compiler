@@ -1,6 +1,5 @@
 use super::CompilationResult;
 use super::Environment;
-use crate::assembling::assembly::Operand;
 use crate::assembling::assembly::{
     ImmediateValue::*,
     Instruction::*,
@@ -10,11 +9,8 @@ use crate::assembling::assembly::{
 use crate::compiling::format_variable_label;
 use crate::linking::elf::SegmentType;
 
-use crate::abstract_syntax_tree::{self as ast, ExprType, Type, Variable, Operator, UnaryOperator, Literal, map_from_exprtype};
+use crate::abstract_syntax_tree::{self as ast, ExprType, Type, Operator};
 
-pub type Program = ast::Program<ExprType>;
-pub type Function = ast::Function<ExprType>;
-pub type Statement = ast::Statement<ExprType>;
 pub type Expression = ast::Expression<ExprType>;
 
 // Whether the expression should result in a address or value
@@ -53,7 +49,7 @@ pub fn compile_expression(
 }
 
 /// Compile a cast expression
-fn compile_cast(type_: Type, operand: ExprType, output: &mut CompilationResult,
+fn compile_cast(_type: Type, operand: ExprType, output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,
     ) {

@@ -52,11 +52,6 @@ pub enum Operand {
     Indirect(Register),
 }
 
-/// Sometimes explicit operand size is needed
-/// For example with push, when there is no register operand, something else is
-/// needed to figure out how much bytes to push
-pub type OperandSize = u8;
-
 #[derive(Debug, Clone)]
 pub enum ImmediateValue {
     Literal(i64),

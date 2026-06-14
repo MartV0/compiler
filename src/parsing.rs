@@ -72,7 +72,7 @@ fn identifier<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, &
     // First letter should be lowercase, exit with error if not
     peek(satisfy(|c| c.is_lowercase())).parse(i)?;
     // Parse alphanumeric or underscore
-    take_while1(move |c: char| (c == '_' || c.is_alphanumeric()))(i)
+    take_while1(move |c: char| c == '_' || c.is_alphanumeric())(i)
 }
 
 /// Parses one of the supported types
