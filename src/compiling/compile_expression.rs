@@ -275,10 +275,10 @@ fn compile_array_subscript(
     output
         .code
         .append(&mut vec![
-            // pop base address into r14
-            Pop(Register(R14)),
             // pop offset into r15
             Pop(Register(R15)),
+            // pop base address into r14
+            Pop(Register(R14)),
         ]);
 
     let size = type_size(&type_).into();

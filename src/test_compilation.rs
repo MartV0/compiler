@@ -247,4 +247,17 @@ mod tests {
         assert_eq!(stdout, "true".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_int_array() {
+        let program = include_str!("../test_programs/IntArray.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(45));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
 }
