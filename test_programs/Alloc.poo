@@ -7,5 +7,6 @@ Int main() {
     string[3] = '\n';
     string[4] = (Char)0;
     print(string);
+    free((&Void)string, 5);
     return 0;
 }

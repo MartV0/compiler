@@ -22,3 +22,11 @@ Int string_len(&Char str) {
         0  // no offset
     );
 }
+
+Int free(&Void address, Int bytes) {
+    return syscall!(
+        11, //munmap
+        address,
+        bytes
+    );
+}
