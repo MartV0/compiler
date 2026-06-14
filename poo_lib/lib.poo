@@ -30,3 +30,47 @@ Int free(&Void address, Int bytes) {
         bytes
     );
 }
+
+&Char format_int(Int x) {
+    Bool negative;
+    negative = x < 0;
+    if (negative) {
+        x = 0 - x;
+    } else {}
+
+    Int alloc_size;
+    alloc_size = digits(x) + (Int)negative + 1;
+    &Char buffer;
+    buffer = (&Char)(alloc(alloc_size));
+    // add the null terminator
+    buffer[alloc_size - 1] = (Char)0;
+    Int index;
+    // Loop stats from the end (adding the leats significant digits first)
+    index = alloc_size - 2;
+    while (x > 0) {
+        buffer[index] = (Char)(x % 10 + 48);
+        x = x / 10;
+        index = index - 1;
+    }
+    if (negative) {
+        buffer[0] = '-';
+    } else {}
+    return buffer;
+}
+
+// Calculate the amount of digits in the integer
+Int digits(Int x) {
+    if (x < 0) {
+        x = 0 - x;
+    }
+    else {}
+    Int digitss;
+    Int accum;
+    digitss = 1;
+    accum = 10;
+    while (accum < x) {
+        accum = accum * 10;
+        digitss = digitss + 1;
+    }
+    return digitss;
+}

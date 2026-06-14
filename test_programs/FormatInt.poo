@@ -1,0 +1,11 @@
+Int main() {
+    print(format_int(1234));
+    print("\n");
+    print(format_int(42000));
+    print("\n");
+    print(format_int(0-44));
+    print("\n");
+    print(format_int(0-1230497));
+    print("\n");
+    return 0;
+}

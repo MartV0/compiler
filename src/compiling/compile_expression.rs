@@ -53,8 +53,21 @@ fn compile_cast(_type: Type, operand: ExprType, output: &mut CompilationResult,
     env: &mut Environment,
     result: ExpressionResult,
     ) {
+    let operand_type = operand.1.clone();
     compile_expression(operand, output, env, result);
-    // all the supported casts don't do any logic, just for the type checker, so no code here
+    match (_type, operand_type) {
+        (Type::Int, Type::Bool) |
+        (Type::Int, Type::Char) => {
+            output.code.append(&mut vec![
+                Pop(Register(R15)),
+                // Make sure all the other bits of R15 are zeroed
+                MovZX(Register(R15), Register(R15B)),
+                Push(Register(R15)),
+            ]);
+        },
+        // all the other supported casts don't do any logic, just for the type checker
+        _ => {}
+    }
     // TODO: maybe I need to zero some bits when converting to char/bool from Int
 }
 

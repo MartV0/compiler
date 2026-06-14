@@ -260,4 +260,30 @@ mod tests {
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
     }
+
+    #[test]
+    fn test_digits() {
+        let program = include_str!("../test_programs/Digits.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(42));
+        assert_eq!(stdout, vec![]);
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_format_int() {
+        let program = include_str!("../test_programs/FormatInt.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "1234\n42000\n-44\n-1230497\n".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
 }

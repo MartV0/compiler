@@ -8,7 +8,7 @@ use crate::assembling::assembly::{
     Operand::*,
     Register::*,
 };
-use crate::compiling::compile_expression::type_size;
+use crate::compiling::compile_expression::{type_size, type_size_stack};
 use crate::linking::elf::SegmentType;
 use compile_expression::{ExpressionResult::*, compile_expression};
 use rand::distr::{Alphanumeric, SampleString};
@@ -143,7 +143,7 @@ fn compile_statement(
             add_local_variable(variable, env);
         },
         Statement::Expression(expression) => {
-            let size = type_size(&expression.1);
+            let size = type_size_stack(&expression.1);
             compile_expression(expression, output, env, Value);
             // Expression left result on the stack, pop this
             output
