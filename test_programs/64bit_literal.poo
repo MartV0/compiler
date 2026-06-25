@@ -1,7 +1,6 @@
 Int main() {
-    Int large;
     // Does not fit into 32 bit
-    large = 8589934592;
+    Int large = 8589934592;
     if (large > 5000) {
         print("true");
     } else {

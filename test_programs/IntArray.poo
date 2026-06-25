@@ -1,18 +1,14 @@
 Int main() {
-    &Int array;
-    Int amount;
-    amount = 10;
-    array = (&Int)(alloc(amount * 8));
-    Int i;
-    i = 0;
+    Int amount = 10;
+    &Int array = (&Int)(alloc(amount * 8));
+    Int i = 0;
     while (i < amount) {
         array[i] = i;
         i = i + 1;
     }
 
     i = 0;
-    Int sum;
-    sum = 0;
+    Int sum = 0;
     while (i < amount) {
         sum = sum + array[i];
         i = i + 1;

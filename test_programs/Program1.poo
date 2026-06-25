@@ -1,5 +1,3 @@
-Int var1;
-
 Int function(Int arg1, Bool arg2) {
     Int var2;
     if (arg2) {

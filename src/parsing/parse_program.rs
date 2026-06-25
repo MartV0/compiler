@@ -82,19 +82,56 @@ fn block<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Vec<St
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("{")(i)?;
     let (i, statements) = many0(statement)(i)?;
+    let statements = statements
+        .into_iter()
+        .flat_map(|stmt| match stmt {
+            StatementDeclInitialisiation::Stmt(statement) => vec![statement],
+            StatementDeclInitialisiation::DeclInit(variable, expression) => vec![
+                Statement::Declaration(variable.clone()),
+                Statement::Expression(Expr(abstract_syntax_tree::Expression::BinaryOp(
+                    Operator::Assignment,
+                    Box::new(Expr(abstract_syntax_tree::Expression::Var(
+                        variable.identifier,
+                    ))),
+                    Box::new(Expr(expression)),
+                ))),
+            ],
+        })
+        .collect();
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("}")(i)?;
     Ok((i, statements))
 }
 
+/// Seperate data type that is either a normal Statement or a decleration with a initialisation in one
+#[derive(Debug, PartialEq)]
+enum StatementDeclInitialisiation {
+    Stmt(Statement),
+    DeclInit(Variable, Expression)
+}
+
+/// Parses a variable declaration followed by semicolon
+fn initialized_declaration<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, (Variable, Expression), E> {
+    let (i, var) = variable(i)?;
+    let (i, _) = optional_ws(i)?;
+    let (i, _) = tag("=")(i)?;
+    let (i, _) = optional_ws(i)?;
+    let (i, expr) = expression(i)?;
+    let (i, _) = optional_ws(i)?;
+    let (i, _) = tag(";")(i)?;
+    Ok((i, (var, expr)))
+}
+
 /// Parses a statement
-fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Statement, E> {
+fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, StatementDeclInitialisiation, E> {
+    use StatementDeclInitialisiation::*;
     alt((
-        return_stmt,
-        map(declaration, Statement::Declaration),
-        map(expression_stmt, | expr | Statement::Expression(Expr(expr))),
-        if_stmt,
-        while_stmt,
+        map(return_stmt, Stmt),
+        map(initialized_declaration, | (var, expr) | DeclInit(var, expr)),
+        map(declaration, | var | Stmt(Statement::Declaration(var))),
+        map(expression_stmt, | expr | Stmt(Statement::Expression(Expr(expr)))),
+        map(if_stmt, Stmt),
+        map(while_stmt, Stmt)
     ))(i)
 }
 
@@ -160,6 +197,7 @@ fn expression_stmt<'a, E: ParseError<&'a str> + 'a + 'a>(
 
 #[cfg(test)]
 mod tests {
+    use super::StatementDeclInitialisiation::*;
     use super::*;
     use nom::error::Error;
 
@@ -332,11 +370,11 @@ mod tests {
             res,
             Ok((
                 " ",
-                Statement::Expression(Expr(Expression::BinaryOp(
+                Stmt(Statement::Expression(Expr(Expression::BinaryOp(
                     Operator::Assignment,
                     Box::new(Expr(Expression::Var("var2".to_string()))),
                     Box::new(Expr(Expression::Literal(Literal::Int(2)))),
-                )))
+                ))))
             ))
         );
     }
@@ -349,7 +387,7 @@ mod tests {
             res,
             Ok((
                 " ",
-                Statement::Expression(Expr(Expression::BinaryOp(
+                Stmt(Statement::Expression(Expr(Expression::BinaryOp(
                     Operator::Assignment,
                     Box::new(Expr(Expression::Var("var2".to_string()))),
                     Box::new(Expr(Expression::UnaryOp(
@@ -359,7 +397,32 @@ mod tests {
                             Box::new(Expr(Expression::Var("a".to_string()))),
                         ))),
                     ))),
-                )))
+                ))))
+            ))
+        );
+    }
+    
+    #[test]
+    fn test_intiliazed_decleration() {
+        let test_string = "Int var2 = **a; ";
+        let res: Result<_, Err<Error<_>>> = statement(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                " ",
+                DeclInit(
+                    Variable {
+                        type_: Type::Int,
+                        identifier: "var2".to_string()
+                    },
+                    Expression::UnaryOp(
+                        UnaryOperator::Dereference,
+                        Box::new(Expr(Expression::UnaryOp(
+                            UnaryOperator::Dereference,
+                            Box::new(Expr(Expression::Var("a".to_string()))),
+                        ))),
+                    ),
+                )
             ))
         );
     }

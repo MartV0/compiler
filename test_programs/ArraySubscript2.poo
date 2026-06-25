@@ -1,6 +1,5 @@
 Int main() {
-    &Char string1;
-    string1 = "ABC";
+    &Char string1 = "ABC";
     string1[0] = 'E';
     string1[1] = 'F';
     print(string1);

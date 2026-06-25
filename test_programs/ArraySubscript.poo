@@ -1,5 +1,4 @@
 Int main() {
-    &Char string;
-    string = "ABC";
+    &Char string = "ABC";
     return (Int)(string[0]) + (Int)(string[1]) + (Int)(string[2]);
 }

@@ -1,6 +1,5 @@
 Int main() {
-    &Char string;
-    string = (&Char)(alloc(5));
+    &Char string = (&Char)(alloc(5));
     string[0] = 'A';
     string[1] = 'B';
     string[2] = 'C';

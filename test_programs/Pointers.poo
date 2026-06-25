@@ -1,18 +1,13 @@
 Int main() {
-    Int a;
-    a = 3;
-    &Int b;
-    b = &a;
-    &&Int c;
-    c = &b;
-    Int d;
-    d = test1(c);
+    Int a = 3;
+    &Int b = &a;
+    &&Int c = &b;
+    Int d = test1(c);
     return a + d;
 }
 
 Int test1(&&Int a) {
-    Int retval;
-    retval = **a;
+    Int retval = **a;
     test2(*a);
     return retval;
 }

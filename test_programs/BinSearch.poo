@@ -1,6 +1,5 @@
 Int sqrt_(Int min, Int max, Int x) {
-    Int m;
-    m=0-1;
+    Int m = 0-1;
     while (m*m != x) {
         m = (min + max)/2;
         if (m*m <= x) {
