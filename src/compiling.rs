@@ -192,7 +192,7 @@ fn compile_if_statement(
 ) {
     // Compile condition
     compile_expression(condition, output, env, Value);
-    let begin_else_label = format_random_label("begin_else+");
+    let end_then_label = format_random_label("end_then+");
     output.code.append(&mut vec![
         // Put condition result into R14 (unfortunately no 8 bit pop)
         Pop(Register(R14)),
@@ -200,7 +200,7 @@ fn compile_if_statement(
         Cmp(Register(R14B), Immediate(Literal(0))),
         // Jump over then branch if condition is zero
         JE(ImmediateValue::Label(
-            begin_else_label.clone(),
+            end_then_label.clone(),
             SegmentType::Text,
         )),
     ]);
@@ -208,20 +208,24 @@ fn compile_if_statement(
     // Compile then branch
     compile_block(&then_branch, current_function, output, env);
 
-    let end_else_label = format_random_label("end_else+");
-    output.code.append(&mut vec![
-        // Jump over else branch
-        Jmp(Immediate(ImmediateValue::Label(
-            end_else_label.clone(),
-            SegmentType::Text,
-        ))),
-        ILabel(begin_else_label),
-    ]);
+    if else_branch.len() != 0 {
+        let end_else_label = format_random_label("end_else+");
+        output.code.append(&mut vec![
+            // Jump over else branch
+            Jmp(Immediate(ImmediateValue::Label(
+                end_else_label.clone(),
+                SegmentType::Text,
+            ))),
+            ILabel(end_then_label),
+        ]);
 
-    // Compile else branch
-    compile_block(&else_branch, current_function, output, env);
+        // Compile else branch
+        compile_block(&else_branch, current_function, output, env);
 
-    output.code.push(ILabel(end_else_label));
+        output.code.push(ILabel(end_else_label));
+    } else {
+        output.code.push(ILabel(end_then_label));
+    }
 }
 
 fn compile_while_statement(

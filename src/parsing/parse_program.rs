@@ -4,7 +4,7 @@ use nom::{
     IResult,
     branch::alt,
     bytes::complete::tag,
-    combinator::map,
+    combinator::{map, opt},
     error::ParseError,
     multi::{many0, separated_list0},
     sequence::tuple,
@@ -99,22 +99,23 @@ fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, St
 }
 
 /// Parses an if statement
-/// TODO: make else branch optional
 fn if_stmt<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Statement, E> {
     let (i, _) = optional_ws(i)?;
     let (i, _) = tag("if")(i)?;
     let (i, _) = optional_ws(i)?;
     let (i, condition) = parenthesised(expression)(i)?;
     let (i, then) = block(i)?;
-    let (i, _) = optional_ws(i)?;
-    let (i, _) = tag("else")(i)?;
-    let (i, else_) = block(i)?;
+    let (i, else_) = opt(map(tuple((
+        optional_ws,
+        tag("else"),
+        block
+    )), | t | t.2))(i)?;
     Ok((
         i,
         Statement::If {
             condition: Expr(condition),
             then_branch: then,
-            else_branch: else_,
+            else_branch: else_.unwrap_or(vec![]),
         },
     ))
 }

@@ -1,15 +1,15 @@
 Int main() {
     if (digits(99999) != 5) {
         return digits(99999);
-    } else {}
+    }
     if (digits(123456789) != 9) {
         return 2;
-    } else {}
+    }
     if (digits(0) != 1) {
         return 3;
-    } else {}
+    }
     if (digits(1) != 1) {
         return 3;
-    } else {}
+    }
     return 42;
 }
