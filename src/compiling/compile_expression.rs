@@ -68,7 +68,6 @@ fn compile_cast(_type: Type, operand: ExprType, output: &mut CompilationResult,
         // all the other supported casts don't do any logic, just for the type checker
         _ => {}
     }
-    // TODO: maybe I need to zero some bits when converting to char/bool from Int
 }
 
 /// Compile a literal expression
