@@ -51,6 +51,16 @@ fn compile_program(program: Program, output: &mut CompilationResult) {
     } = program;
 
     output.code.append(&mut vec![
+        // argc
+        Pop(Register(R14)),
+        // Top of the stack now contains the first entry from argv
+        // But because we want to to give a pointer to a pointer as argument, we
+        // move want to use rsp directly instead of popping, as popping would 
+        // result in the first argument in argv, instead of the entire list
+        Mov(Register(R15), Register(RSP)),
+        // Push argc && argv
+        Push(Register(R14)),
+        Push(Register(R15)),
         // Call the main function
         Call(Immediate(Label(MAIN_LABEL.to_string(), SegmentType::Text))),
         //	Move return value of main into exit code argument

@@ -9,10 +9,10 @@ use crate::assembling::assemble;
 use crate::compiling::CompilationResult;
 use crate::linking;
 
-fn test_full_compiler(program: &str) -> Result<Output, std::io::Error> {
+fn test_full_compiler(program: &str, args: Vec<&str>) -> Result<Output, std::io::Error> {
     let temp_file = &random_file_name();
     crate::compile(program, temp_file);
-    test_executable(temp_file)
+    test_executable(temp_file, args)
 }
 
 pub fn test_assembler(input: CompilationResult) -> Result<Output, std::io::Error> {
@@ -20,13 +20,13 @@ pub fn test_assembler(input: CompilationResult) -> Result<Output, std::io::Error
     let linked = linking::elf::create_elf(assembled);
     let temp_file = &random_file_name();
     fs::write(temp_file, linked).expect("failed to write to file");
-    test_executable(temp_file)
+    test_executable(temp_file, vec![])
 }
 
-fn test_executable(path: &Path) -> Result<Output, std::io::Error> {
+fn test_executable(path: &Path, args: Vec<&str>) -> Result<Output, std::io::Error> {
     let executable = PermissionsExt::from_mode(0o700);
     fs::set_permissions(path, executable)?;
-    Command::new(path).output()
+    Command::new(path).args(args).output()
 }
 
 fn random_file_name() -> PathBuf {
@@ -47,7 +47,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "Hello world!\n".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
@@ -60,7 +60,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "hahahahaha".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
@@ -73,7 +73,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(123));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -86,7 +86,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(123));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -99,7 +99,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "Hello World!".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
@@ -112,7 +112,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(17));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -125,7 +125,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(15));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -138,7 +138,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(44));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -151,7 +151,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(16));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -164,7 +164,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(36));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -177,7 +177,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(7));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -190,7 +190,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(3));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -203,7 +203,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(198));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -216,7 +216,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "EFC".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
@@ -229,7 +229,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "ABC\n".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
@@ -242,7 +242,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "true".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
@@ -255,7 +255,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(45));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -268,7 +268,7 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(42));
         assert_eq!(stdout, vec![]);
         assert_eq!(stderr, vec![]);
@@ -281,9 +281,22 @@ mod tests {
             status,
             stdout,
             stderr,
-        } = test_full_compiler(program).expect("failed to execute program");
+        } = test_full_compiler(program, vec![]).expect("failed to execute program");
         assert_eq!(status.code(), Some(0));
         assert_eq!(stdout, "1234\n42000\n-44\n-1230497\n".as_bytes().to_vec());
+        assert_eq!(stderr, vec![]);
+    }
+
+    #[test]
+    fn test_echo() {
+        let program = include_str!("../test_programs/Echo.poo");
+        let Output {
+            status,
+            stdout,
+            stderr,
+        } = test_full_compiler(program, vec!["Hello", "echo!"]).expect("failed to execute program");
+        assert_eq!(status.code(), Some(0));
+        assert_eq!(stdout, "Hello echo!\n".as_bytes().to_vec());
         assert_eq!(stderr, vec![]);
     }
 }

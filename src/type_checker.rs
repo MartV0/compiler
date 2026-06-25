@@ -18,6 +18,7 @@ pub enum TypeError {
     WrongOperand(Type, Type, Operator),
     WrongUnaryOperand(Type, UnaryOperator),
     WrongCast(Type, Type),
+    WrongMain(),
 }
 
 pub fn type_check(
@@ -65,6 +66,18 @@ fn check_function(
     variables: &mut HashMap<String, Type>,
     functions: &HashMap<String, (Type, Vec<Variable>)>,
 ) -> Result<Function<ExprType>, TypeError> {
+    if indentifier == "main" {
+        match (&return_type, &arguments[..]) {
+            (Int, [
+                Variable { type_: Int, identifier: argc },
+                Variable { type_: Pointer(pointer), identifier: argv }
+            ]) if argc == "argc" && argv == "argv" && **pointer == Pointer(Box::new(Char)) => {},
+            (Int, []) => {},
+            (_, _) => {
+                return Err(WrongMain());
+            },
+        }
+    }
     let mut defined_variables = variables.clone();
     for Variable { type_, identifier } in arguments.iter() {
         if let Some(_) = defined_variables.insert(identifier.clone(), type_.clone()) {
@@ -267,6 +280,8 @@ fn check_unary_operator(
                 // Can cast any pointer to void
                 (Pointer(t), Pointer(_)) if let Void = *t
                     => Ok(ExprType(expr, type_)),
+                // Can cast any pointer to int
+                (Int, Pointer(_)) => Ok(ExprType(expr, type_)),
                 (cast_type, operand_type) => Err(WrongCast(cast_type, operand_type))
             }
         }

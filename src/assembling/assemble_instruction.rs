@@ -29,6 +29,10 @@ pub fn assemble_instruction(instruction: Instruction, output: &mut IntermediateA
             if is_32or64_bit_reg(&reg) => {
             add_rex_opcode_modrm_offset(output, vec![0x89], rm, RegValue::Register(reg));
         }
+        Instruction::Mov(Operand::Register(reg), rm) 
+            if is_32or64_bit_reg(&reg) => {
+            add_rex_opcode_modrm_offset(output, vec![0x8B], rm, RegValue::Register(reg));
+        }
         Instruction::MovZX(Operand::Register(reg), rm)
             if is_32or64_bit_reg(&reg) =>
         {

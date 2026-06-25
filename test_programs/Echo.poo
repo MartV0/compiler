@@ -1,0 +1,11 @@
+Int main(Int argc, &&Char argv) {
+    Int i = 1;
+    while(i < argc - 1) {
+        print(argv[i]);
+        print(" ");
+        i = i + 1;
+    }
+    print(argv[i]);
+    print("\n");
+    return 0;
+}
