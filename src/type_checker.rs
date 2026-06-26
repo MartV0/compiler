@@ -42,7 +42,7 @@ pub fn type_check(
     }
 
     let mut defined_variables = HashMap::new();
-    for Variable { type_, identifier } in variables.iter() {
+    for InitializedVariable { type_, identifier, .. } in variables.iter() {
         defined_variables.insert(identifier.clone(), type_.clone());
     }
 

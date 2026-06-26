@@ -1,6 +1,6 @@
 mod compile_expression;
 
-use crate::abstract_syntax_tree::{self, ExprType, Variable};
+use crate::abstract_syntax_tree::{self, ExprType, InitializedVariable, Variable};
 use crate::assembling::assembly::ImmediateValue;
 use crate::assembling::assembly::{
     ImmediateValue::*,
@@ -99,7 +99,7 @@ fn format_variable_label(identifier: &str) -> String {
 }
 
 /// Compile a global variable declaration
-fn compile_variable(variable: Variable, output: &mut CompilationResult) {
+fn compile_variable(variable: InitializedVariable, output: &mut CompilationResult) {
     let size: usize = type_size(&variable.type_) as usize;
     output
         .data

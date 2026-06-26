@@ -23,17 +23,25 @@ fn expression_simple<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Expression, E> {
     alt((
-        value(Expression::Literal(Literal::Bool(true)), tag("True")),
-        value(Expression::Literal(Literal::Bool(false)), tag("False")),
-        map(string_literal, |s| Expression::Literal(Literal::String(s))),
-        map(char_literal, |s| Expression::Literal(Literal::Char(s))),
-        map(digit1, |str| {
-            Expression::Literal(Literal::Int(str::parse(str).expect("should be parseble")))
-        }),
+        map(literal, Expression::Literal),
         function_call,
         builtin_function_call,
         map(identifier, |ident| Expression::Var(ident.to_string())),
         parenthesised(expression),
+    ))(i)
+}
+
+pub fn literal<'a, E: ParseError<&'a str> + 'a>(
+    i: &'a str,
+) -> IResult<&'a str, Literal, E> {
+    alt((
+        value(Literal::Bool(true), tag("True")),
+        value(Literal::Bool(false), tag("False")),
+        map(string_literal, Literal::String),
+        map(char_literal, Literal::Char),
+        map(digit1, |str| {
+            Literal::Int(str::parse(str).expect("should be parseble"))
+        }),
     ))(i)
 }
 

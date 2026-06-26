@@ -103,6 +103,8 @@ fn variable<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Var
 
 #[cfg(test)]
 mod tests {
+    use crate::abstract_syntax_tree::InitializedVariable;
+
     use super::*;
     use nom::error::Error;
 
@@ -216,9 +218,10 @@ mod tests {
                         Statement::Return(Expr(Expression::Literal(Literal::Int(4))))
                     ]
                 }],
-                variables: vec![Variable {
+                variables: vec![InitializedVariable {
                     type_: Type::Int,
-                    identifier: "var1".to_string()
+                    identifier: "var1".to_string(),
+                    value: None
                 }],
             })
         );

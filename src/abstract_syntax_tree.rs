@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Clone)]
 pub struct Program<ExpressionType> {
     pub functions: Vec<Function<ExpressionType>>,
-    pub variables: Vec<Variable>,
+    pub variables: Vec<InitializedVariable>,
 }
 
 pub type Indentifier = String;
@@ -88,6 +88,13 @@ pub enum Expression<ExpressionType> {
 pub struct Variable {
     pub type_: Type,
     pub identifier: Indentifier,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct InitializedVariable {
+    pub type_: Type,
+    pub identifier: Indentifier,
+    pub value: Option<Literal>
 }
 
 #[derive(Debug, Clone, PartialEq)]

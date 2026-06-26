@@ -10,6 +10,8 @@ use nom::{
     sequence::tuple,
 };
 
+use crate::{abstract_syntax_tree::InitializedVariable, parsing::parse_expression::literal};
+
 use super::parse_expression::expression;
 use super::*;
 
@@ -43,17 +45,27 @@ pub fn program<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 }
 
 /// Parses a variable declaration followed by semicolon
-fn declaration<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Variable, E> {
+fn declaration<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, InitializedVariable, E> {
     let (i, var) = variable(i)?;
     let (i, _) = optional_ws(i)?;
+    let (i, value) = opt(map(tuple((
+        tag("="),
+        optional_ws,
+        literal,
+        optional_ws,
+    )), | x | x.2))(i)?;
     let (i, _) = tag(";")(i)?;
-    Ok((i, var))
+    Ok((i, InitializedVariable {
+        value,
+        type_: var.type_,
+        identifier: var.identifier,
+    }))
 }
 
 /// Type temporarily used because functions and variables declaration can be mixed
 enum ProgramContent {
     Func(Function),
-    Var(Variable),
+    Var(InitializedVariable),
 }
 
 /// Parses the function
@@ -128,7 +140,7 @@ fn statement<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, St
     alt((
         map(return_stmt, Stmt),
         map(initialized_declaration, | (var, expr) | DeclInit(var, expr)),
-        map(declaration, | var | Stmt(Statement::Declaration(var))),
+        map(declaration, | var | Stmt(Statement::Declaration(Variable { type_: var.type_, identifier: var.identifier }))),
         map(expression_stmt, | expr | Stmt(Statement::Expression(Expr(expr)))),
         map(if_stmt, Stmt),
         map(while_stmt, Stmt)
@@ -209,9 +221,27 @@ mod tests {
             res,
             Ok((
                 " ",
-                (Variable {
+                (InitializedVariable{
                     type_: Type::Bool,
-                    identifier: "yes".to_string()
+                    identifier: "yes".to_string(),
+                    value: None,
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn test_initialized_variable() {
+        let test_string = " Int test = 0 ; ";
+        let res: IResult<_, _, Error<_>> = declaration(&test_string);
+        assert_eq!(
+            res,
+            Ok((
+                " ",
+                (InitializedVariable{
+                    type_: Type::Int,
+                    identifier: "test".to_string(),
+                    value: Some(Literal::Int(0)),
                 })
             ))
         );
@@ -228,16 +258,19 @@ mod tests {
                 "",
                 (Program {
                     variables: vec![
-                        Variable {
+                        InitializedVariable {
                             type_: Type::Bool,
+                            value: None,
                             identifier: "yes".to_string()
                         },
-                        Variable {
+                        InitializedVariable  {
                             type_: Type::Int,
+                            value: None,
                             identifier: "no".to_string()
                         },
-                        Variable {
+                        InitializedVariable  {
                             type_: Type::Int,
+                            value: None,
                             identifier: "yes2".to_string()
                         },
                     ],
